@@ -1,0 +1,111 @@
+using CutCraft.Core.Models;
+
+namespace CutCraft.Core.Timeline;
+
+public class TimelineEngine
+{
+    public double SnapThresholdSeconds { get; set; } = 0.20;
+
+    public TimeSpan SnapTime(Project project, TimeSpan targetTime, TimeSpan? excludeThreshold = null)
+    {
+        var threshold = excludeThreshold ?? TimeSpan.FromSeconds(SnapThresholdSeconds);
+        var bestSnap = targetTime;
+        var minDiff = threshold;
+
+        // Snap to zero
+        if (targetTime < threshold)
+        {
+            return TimeSpan.Zero;
+        }
+
+        // Check all clips in all tracks for start or end points
+        foreach (var track in project.Tracks)
+        {
+            foreach (var clip in track.Clips)
+            {
+                var diffStart = (clip.TimelineStart - targetTime).Duration();
+                if (diffStart < minDiff)
+                {
+                    minDiff = diffStart;
+                    bestSnap = clip.TimelineStart;
+                }
+
+                var diffEnd = (clip.TimelineEnd - targetTime).Duration();
+                if (diffEnd < minDiff)
+                {
+                    minDiff = diffEnd;
+                    bestSnap = clip.TimelineEnd;
+                }
+            }
+        }
+
+        return bestSnap;
+    }
+
+    public List<Clip> GetClipsAtTime(Project project, TimeSpan time)
+    {
+        var result = new List<Clip>();
+        foreach (var track in project.Tracks)
+        {
+            if (track.IsMuted) continue;
+            foreach (var clip in track.Clips)
+            {
+                if (time >= clip.TimelineStart && time < clip.TimelineEnd)
+                {
+                    result.Add(clip);
+                }
+            }
+        }
+        return result;
+    }
+
+    public Clip? GetClipAtTimeOnTrack(Track track, TimeSpan time)
+    {
+        return track.Clips.FirstOrDefault(c => time >= c.TimelineStart && time < c.TimelineEnd);
+    }
+
+    public void RippleShiftAfter(Track track, TimeSpan afterTime, TimeSpan delta)
+    {
+        foreach (var clip in track.Clips)
+        {
+            if (clip.TimelineStart >= afterTime)
+            {
+                clip.TimelineStart += delta;
+                if (clip.TimelineStart < TimeSpan.Zero)
+                {
+                    clip.TimelineStart = TimeSpan.Zero;
+                }
+            }
+        }
+    }
+
+    public void ArrangeSequentially(Track track, TimeSpan gap = default)
+    {
+        var current = TimeSpan.Zero;
+        foreach (var clip in track.Clips.OrderBy(c => c.TimelineStart))
+        {
+            clip.TimelineStart = current;
+            current += clip.TimelineDuration + gap;
+        }
+    }
+
+    public static string FormatTimecode(TimeSpan time, double fps = 30.0)
+    {
+        var hours = (int)time.TotalHours;
+        var minutes = time.Minutes;
+        var seconds = time.Seconds;
+        var frames = (int)((time.TotalSeconds - Math.Truncate(time.TotalSeconds)) * fps);
+
+        return $"{hours:D2}:{minutes:D2}:{seconds:D2};{frames:D2}";
+    }
+
+    public static long TimeToFrames(TimeSpan time, double fps = 30.0)
+    {
+        return (long)Math.Round(time.TotalSeconds * fps);
+    }
+
+    public static TimeSpan FramesToTime(long frames, double fps = 30.0)
+    {
+        return TimeSpan.FromSeconds(frames / Math.Max(1.0, fps));
+    }
+}
