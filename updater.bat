@@ -5,7 +5,7 @@ title CutCraft Auto-Updater
 color 0A
 
 echo ========================================================
-echo               CutCraft Auto-Updater v0.0
+echo               CutCraft Auto-Updater v0.1.1
 echo ========================================================
 echo.
 

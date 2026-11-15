@@ -1,10 +1,10 @@
 {
-  "version": "0.0",
-  "name": "CutCraft v0.0 (Release Update - Video Player & Shortcut Fix)",
-  "releaseDate": "2026-11-15T17:40:00Z",
-  "releaseNotes": "CutCraft v0.0 Hotfix Update:\n- Fixed Spacebar and keyboard shortcut interception across all focused UI elements (PreviewKeyDown)\n- Fixed video player freezing issue by eliminating rapid-seek loop and smooth 1x clock synchronization\n- Fixed imported video playback initialization and auto-seeking to clip start\n- Added pure C# MP4/WAV metadata header fallback reader for environments without ffprobe\n- Added live natural dimension and duration synchronization from MediaOpened\n- Updated standalone win-x64 published application package",
-  "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v0.0/CutCraft-v0.0-win-x64.zip",
+  "version": "0.1.1",
+  "name": "CutCraft v0.1.1 (Release Update - Video Player & Shortcut Fix)",
+  "releaseDate": "2026-11-15T17:48:00Z",
+  "releaseNotes": "CutCraft v0.1.1 Release Update:\n- Video player playback fix: smooth frame timing and eliminated freeze loop\n- Spacebar play/pause key interception across all controls (PreviewKeyDown)\n- Media import auto-seek to clip start and pure C# MP4 metadata parser\n- Live subtitle and caption overlay preview\n- Auto-updater integration and version bump to 0.1.1",
+  "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v0.1.1/CutCraft-v0.1.1-win-x64.zip",
   "mandatory": false,
-  "fileSizeBytes": 905285,
-  "sha256Checksum": "C49AAD4A6C80881D6CCD8692D0F1D0184AC7B39BC442017256E66FBE8FA5E2D8"
+  "fileSizeBytes": 905752,
+  "sha256Checksum": "CDE1215472CDF5ACCFCD1FC9D880E910A4C9466A8BF48D56E564FC85D6AFFEF3"
 }

@@ -75,7 +75,7 @@ public partial class MainViewModel : ObservableObject
     private Visibility _activeCaptionVisibility = Visibility.Collapsed;
 
     [ObservableProperty]
-    private string _appVersionDisplay = "v0.0";
+    private string _appVersionDisplay = "v0.1.1";
 
     [ObservableProperty]
     private string _updateButtonText = "🔄 Check Updates";
@@ -254,16 +254,38 @@ public partial class MainViewModel : ObservableObject
         SeekTo(CurrentProject.Duration);
     }
 
+    private UpdateInfo? _pendingUpdate;
+
     [RelayCommand]
     public async Task CheckForUpdatesAsync()
     {
         try
         {
+            if (_pendingUpdate != null)
+            {
+                UpdateButtonText = "⏳ Updating...";
+                Notifier.Announce($"Downloading CutCraft {_pendingUpdate.Version} update...");
+                var updateZip = await _updateManager.DownloadUpdateAsync(_pendingUpdate, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "updates"));
+                Notifier.Announce("Update downloaded. Applying update and restarting CutCraft...");
+                _updateManager.ApplyUpdate(updateZip, restartApp: true);
+                return;
+            }
+
             UpdateButtonText = "🔄 Checking...";
             Notifier.Announce("Checking for CutCraft updates...");
             var result = await _updateManager.CheckForUpdatesAsync();
-            UpdateButtonText = result.HasUpdate ? $"⬆ Update to {result.LatestVersion}" : "✔ v0.0 Up to date";
-            Notifier.Announce(result.Message);
+            if (result.HasUpdate && result.Update != null)
+            {
+                _pendingUpdate = result.Update;
+                UpdateButtonText = $"⬆ Install {result.LatestVersion}";
+                Notifier.Announce($"Update available: CutCraft {result.LatestVersion}! Click Install to apply update.");
+            }
+            else
+            {
+                _pendingUpdate = null;
+                UpdateButtonText = $"✔ {AppVersionDisplay} Up to date";
+                Notifier.Announce(result.Message);
+            }
         }
         catch (Exception ex)
         {
