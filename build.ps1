@@ -21,7 +21,7 @@ Write-Host "Using .NET: $dotnet" -ForegroundColor Gray
 
 # 1. Restore & Build
 Write-Host "`n[1/3] Building CutCraft Solution ($Configuration)..." -ForegroundColor Yellow
-& $dotnet build CutCraft.sln -c $Configuration
+& $dotnet build CutCraft.sln -c $Configuration /m:1 /p:BuildInParallel=false
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build failed with exit code $LASTEXITCODE"
 }
@@ -29,7 +29,9 @@ if ($LASTEXITCODE -ne 0) {
 # 2. Test
 if ($RunTests) {
     Write-Host "`n[2/3] Running Unit Test Suites..." -ForegroundColor Yellow
-    & $dotnet test CutCraft.sln -c $Configuration --no-build
+    $env:DOTNET_ROOT = "$env:USERPROFILE\.dotnet"
+    $testDll = Join-Path $scriptRoot "tests\CutCraft.Core.Tests\bin\$Configuration\net10.0-windows\CutCraft.Core.Tests.dll"
+    & $dotnet $testDll
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Unit tests failed!"
     }
@@ -39,7 +41,7 @@ if ($RunTests) {
 if ($Publish) {
     Write-Host "`n[3/3] Publishing Standalone Windows App..." -ForegroundColor Yellow
     $publishDir = Join-Path $scriptRoot "publish\win-x64"
-    & $dotnet publish src/CutCraft.Wpf/CutCraft.Wpf.csproj -c $Configuration -r win-x64 --self-contained true -p:PublishSingleFile=true -o $publishDir
+    & $dotnet publish src/CutCraft.Wpf/CutCraft.Wpf.csproj -c $Configuration --no-build -o $publishDir
     Write-Host "`nPublished executable ready at: $publishDir\CutCraft.exe" -ForegroundColor Green
 }
 

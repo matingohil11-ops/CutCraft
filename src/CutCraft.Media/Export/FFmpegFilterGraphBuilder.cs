@@ -68,6 +68,9 @@ public class FFmpegFilterGraphBuilder
                 vFilters.Add($"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2");
                 vFilters.Add($"fps={fps.ToString("F2", CultureInfo.InvariantCulture)}");
 
+                // Phase 9: Apply clip transformations (Orientation, Flip, Pan & Zoom)
+                ApplyClipTransformFilters(clip, vFilters, width, height);
+
                 // Apply clip effects
                 foreach (var effect in clip.Effects)
                 {
@@ -91,6 +94,9 @@ public class FFmpegFilterGraphBuilder
                     {
                         aFilters.Add($"volume={clip.Volume.ToString("F2", CultureInfo.InvariantCulture)}");
                     }
+
+                    // Phase 8: Apply audio fade in / fade out
+                    ApplyClipAudioFadeFilters(clip, aFilters);
 
                     // Apply audio effects (fades)
                     foreach (var effect in clip.Effects)
@@ -232,20 +238,20 @@ public class FFmpegFilterGraphBuilder
         string finalVideoOut = captionCompOut;
 
         // 5. Audio Mixing (Video Clips Audio + Music Tracks)
-        var allAudioLabels = new List<string>();
-
+        string? baseAudioOut = null;
         if (baseAudioSegments.Count > 1)
         {
             filterGraph.Append($"{string.Join("", baseAudioSegments)}concat=n={baseAudioSegments.Count}:v=0:a=1[a_base_concat];\n");
-            allAudioLabels.Add("[a_base_concat]");
+            baseAudioOut = "a_base_concat";
         }
         else if (baseAudioSegments.Count == 1)
         {
-            allAudioLabels.Add(baseAudioSegments[0]);
+            baseAudioOut = baseAudioSegments[0].Trim('[', ']');
         }
 
         // Music / Voiceover tracks
         int musicSegIndex = 0;
+        var musicAudioLabels = new List<string>();
         foreach (var aTrack in audioTracks)
         {
             foreach (var clip in aTrack.Clips.OrderBy(c => c.TimelineStart))
@@ -270,30 +276,76 @@ public class FFmpegFilterGraphBuilder
                     aFilters.Add($"volume={clip.Volume.ToString("F2", CultureInfo.InvariantCulture)}");
                 }
 
+                // Phase 8: Apply audio fade in / fade out to music track
+                ApplyClipAudioFadeFilters(clip, aFilters);
+
                 foreach (var effect in clip.Effects)
                 {
                     ApplyAudioEffectFilter(effect, aFilters, clip);
                 }
 
                 filterGraph.Append($"[{aInIdx}:a]{string.Join(",", aFilters)}[{mLabel}];\n");
-                allAudioLabels.Add($"[{mLabel}]");
+                musicAudioLabels.Add($"[{mLabel}]");
             }
         }
 
         string finalAudioOut;
-        if (allAudioLabels.Count > 1)
+
+        // Phase 8: Audio Ducking & Mixing
+        if (settings.EnableAudioDucking && baseAudioOut != null && musicAudioLabels.Count > 0)
         {
-            filterGraph.Append($"{string.Join("", allAudioLabels)}amix=inputs={allAudioLabels.Count}:duration=first:dropout_transition=2[a_mixed];\n");
+            string musicCombined = "a_music_all";
+            if (musicAudioLabels.Count > 1)
+            {
+                filterGraph.Append($"{string.Join("", musicAudioLabels)}amix=inputs={musicAudioLabels.Count}:duration=longest[a_music_all];\n");
+            }
+            else
+            {
+                musicCombined = musicAudioLabels[0].Trim('[', ']');
+            }
+
+            // Sidechain compressor ducks music whenever speech/dialogue is active on base video
+            filterGraph.Append($"[{musicCombined}][{baseAudioOut}]sidechaincompress=threshold=0.03:ratio=4:attack=50:release=300[a_music_ducked];\n");
+            filterGraph.Append($"[{baseAudioOut}][a_music_ducked]amix=inputs=2:duration=first:dropout_transition=2[a_mixed];\n");
             finalAudioOut = "a_mixed";
-        }
-        else if (allAudioLabels.Count == 1)
-        {
-            finalAudioOut = allAudioLabels[0].Trim('[', ']');
         }
         else
         {
-            filterGraph.Append("anullsrc=r=48000:cl=stereo:d=5[a_silent];\n");
-            finalAudioOut = "a_silent";
+            var allAudioLabels = new List<string>();
+            if (baseAudioOut != null)
+            {
+                allAudioLabels.Add($"[{baseAudioOut}]");
+            }
+            allAudioLabels.AddRange(musicAudioLabels);
+
+            if (allAudioLabels.Count > 1)
+            {
+                filterGraph.Append($"{string.Join("", allAudioLabels)}amix=inputs={allAudioLabels.Count}:duration=first:dropout_transition=2[a_mixed];\n");
+                finalAudioOut = "a_mixed";
+            }
+            else if (allAudioLabels.Count == 1)
+            {
+                finalAudioOut = allAudioLabels[0].Trim('[', ']');
+            }
+            else
+            {
+                filterGraph.Append("anullsrc=r=48000:cl=stereo:d=5[a_silent];\n");
+                finalAudioOut = "a_silent";
+            }
+        }
+
+        // Phase 8: Audio Normalization (EBU R128 loudnorm)
+        if (settings.NormalizeAudio)
+        {
+            filterGraph.Append($"[{finalAudioOut}]loudnorm=I=-16:TP=-1.5:LRA=11[a_loudnorm];\n");
+            finalAudioOut = "a_loudnorm";
+        }
+
+        // Phase 11: GIF format export support (two-pass high-quality palette)
+        if (settings.Format == ExportFormat.Gif)
+        {
+            filterGraph.Append($"[{finalVideoOut}]split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer[v_gif_out];\n");
+            finalVideoOut = "v_gif_out";
         }
 
         // Build command line
@@ -306,19 +358,90 @@ public class FFmpegFilterGraphBuilder
 
         var filterComplexStr = filterGraph.ToString().TrimEnd('\n', ';');
         sb.Append($"-filter_complex \"{filterComplexStr}\" ");
-        sb.Append($"-map \"[{finalVideoOut}]\" -map \"[{finalAudioOut}]\" ");
-        sb.Append($"-c:v {settings.VideoCodec} -preset {settings.Preset} -b:v {settings.VideoBitrateKbps}k ");
-        sb.Append($"-c:a {settings.AudioCodec} -b:a {settings.AudioBitrateKbps}k ");
-        sb.Append($"\"{settings.OutputPath}\"");
+
+        if (settings.Format == ExportFormat.Gif)
+        {
+            // GIF export: video stream only
+            sb.Append($"-map \"[{finalVideoOut}]\" ");
+            sb.Append($"\"{settings.OutputPath}\"");
+        }
+        else if (settings.Format == ExportFormat.AudioOnlyMp3)
+        {
+            // Audio-only MP3 export
+            sb.Append($"-map \"[{finalAudioOut}]\" -vn -c:a libmp3lame -b:a {settings.AudioBitrateKbps}k ");
+            sb.Append($"\"{settings.OutputPath}\"");
+        }
+        else
+        {
+            // Standard Video + Audio MP4
+            sb.Append($"-map \"[{finalVideoOut}]\" -map \"[{finalAudioOut}]\" ");
+            sb.Append($"-c:v {settings.VideoCodec} -preset {settings.Preset} -b:v {settings.VideoBitrateKbps}k ");
+            sb.Append($"-c:a {settings.AudioCodec} -b:a {settings.AudioBitrateKbps}k ");
+            sb.Append($"\"{settings.OutputPath}\"");
+        }
 
         return new FFmpegCommandArgs
         {
             InputFiles = inputs,
             FilterComplex = filterComplexStr,
-            VideoMap = $"[{finalVideoOut}]",
-            AudioMap = $"[{finalAudioOut}]",
+            VideoMap = settings.Format == ExportFormat.AudioOnlyMp3 ? string.Empty : $"[{finalVideoOut}]",
+            AudioMap = settings.Format == ExportFormat.Gif ? string.Empty : $"[{finalAudioOut}]",
             FullCommandLine = sb.ToString()
         };
+    }
+
+    private static void ApplyClipTransformFilters(Clip clip, List<string> vFilters, int width, int height)
+    {
+        if (clip.Rotation == 90)
+        {
+            vFilters.Add("transpose=1");
+        }
+        else if (clip.Rotation == 180)
+        {
+            vFilters.Add("hflip,vflip");
+        }
+        else if (clip.Rotation == 270)
+        {
+            vFilters.Add("transpose=2");
+        }
+
+        if (clip.FlipHorizontal)
+        {
+            vFilters.Add("hflip");
+        }
+        if (clip.FlipVertical)
+        {
+            vFilters.Add("vflip");
+        }
+
+        switch (clip.PanZoom)
+        {
+            case PanZoomType.ZoomIn:
+                vFilters.Add($"zoompan=z='min(zoom+0.0015,1.3)':d=125:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}");
+                break;
+            case PanZoomType.ZoomOut:
+                vFilters.Add($"zoompan=z='if(lte(zoom,1.0),1.3,max(1.001,zoom-0.0015))':d=125:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}");
+                break;
+            case PanZoomType.PanLeftToRight:
+                vFilters.Add($"zoompan=z=1.2:x='if(lte(on,1),0,min(x+1,iw-iw/zoom))':y='ih/2-(ih/zoom/2)':d=125:s={width}x{height}");
+                break;
+            case PanZoomType.PanRightToLeft:
+                vFilters.Add($"zoompan=z=1.2:x='if(lte(on,1),iw-iw/zoom,max(x-1,0))':y='ih/2-(ih/zoom/2)':d=125:s={width}x{height}");
+                break;
+        }
+    }
+
+    private static void ApplyClipAudioFadeFilters(Clip clip, List<string> aFilters)
+    {
+        if (clip.AudioFadeIn > 0)
+        {
+            aFilters.Add($"afade=t=in:st=0:d={clip.AudioFadeIn.ToString("F2", CultureInfo.InvariantCulture)}");
+        }
+        if (clip.AudioFadeOut > 0)
+        {
+            var outStart = Math.Max(0, clip.TimelineDuration.TotalSeconds - clip.AudioFadeOut);
+            aFilters.Add($"afade=t=out:st={outStart.ToString("F2", CultureInfo.InvariantCulture)}:d={clip.AudioFadeOut.ToString("F2", CultureInfo.InvariantCulture)}");
+        }
     }
 
     private static void ApplyVideoEffectFilter(ClipEffect effect, List<string> vFilters, Clip clip)

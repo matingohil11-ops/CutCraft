@@ -39,6 +39,32 @@ public partial class ExportWindow : Window
         }
     }
 
+    private void PresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (OutputPathTextBox == null || FormatInfoTextBlock == null) return;
+
+        var selectedTag = (PresetComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1080p";
+        var currentPath = OutputPathTextBox.Text;
+        var dir = Path.GetDirectoryName(currentPath) ?? "";
+        var baseName = Path.GetFileNameWithoutExtension(currentPath);
+
+        if (selectedTag == "gif")
+        {
+            OutputPathTextBox.Text = Path.Combine(dir, $"{baseName}.gif");
+            FormatInfoTextBlock.Text = "Format: High-Quality Animated GIF (No Audio)";
+        }
+        else if (selectedTag == "mp3")
+        {
+            OutputPathTextBox.Text = Path.Combine(dir, $"{baseName}.mp3");
+            FormatInfoTextBlock.Text = "Format: MP3 Audio Only (192 kbps)";
+        }
+        else
+        {
+            OutputPathTextBox.Text = Path.Combine(dir, $"{baseName}.mp4");
+            FormatInfoTextBlock.Text = "Format: MP4 (H.264 Video + AAC Stereo Audio)";
+        }
+    }
+
     private async void StartExportButton_Click(object sender, RoutedEventArgs e)
     {
         var outputPath = OutputPathTextBox.Text;
@@ -52,7 +78,9 @@ public partial class ExportWindow : Window
         {
             OutputPath = outputPath,
             Quality = ExportQuality.High,
-            FrameRate = _project.FrameRate
+            FrameRate = _project.FrameRate,
+            NormalizeAudio = NormalizeAudioCheckBox.IsChecked == true,
+            EnableAudioDucking = AudioDuckingCheckBox.IsChecked == true
         };
 
         var selectedTag = (PresetComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "1080p";
@@ -67,9 +95,20 @@ public partial class ExportWindow : Window
                 settings.VideoBitrateKbps = 4500;
                 break;
             case "vertical":
-                settings.CustomWidth = 1080;
-                settings.CustomHeight = 1920;
+                settings.Resolution = ExportResolution.VerticalShorts;
                 settings.VideoBitrateKbps = 8000;
+                break;
+            case "square":
+                settings.Resolution = ExportResolution.Square;
+                settings.VideoBitrateKbps = 7000;
+                break;
+            case "gif":
+                settings.Format = ExportFormat.Gif;
+                settings.Resolution = ExportResolution.Hd720p;
+                break;
+            case "mp3":
+                settings.Format = ExportFormat.AudioOnlyMp3;
+                settings.AudioBitrateKbps = 192;
                 break;
             default:
                 settings.Resolution = ExportResolution.Fhd1080p;

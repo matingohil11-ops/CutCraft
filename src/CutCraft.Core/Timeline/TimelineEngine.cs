@@ -12,10 +12,11 @@ public class TimelineEngine
         var bestSnap = targetTime;
         var minDiff = threshold;
 
-        // Snap to zero
+        // Snap to zero if within threshold
         if (targetTime < threshold)
         {
-            return TimeSpan.Zero;
+            minDiff = targetTime;
+            bestSnap = TimeSpan.Zero;
         }
 
         // Check all clips in all tracks for start or end points

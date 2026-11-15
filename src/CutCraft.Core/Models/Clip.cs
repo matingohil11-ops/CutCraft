@@ -67,6 +67,16 @@ public class Clip
     public Transition? TransitionIn { get; set; }
     public Transition? TransitionOut { get; set; }
 
+    // Phase 8: Audio Fade In & Fade Out
+    public double AudioFadeIn { get; set; } = 0.0; // Seconds
+    public double AudioFadeOut { get; set; } = 0.0; // Seconds
+
+    // Phase 9: Clip Transformations & Orientation
+    public int Rotation { get; set; } = 0; // 0, 90, 180, 270 degrees
+    public bool FlipHorizontal { get; set; } = false;
+    public bool FlipVertical { get; set; } = false;
+    public PanZoomType PanZoom { get; set; } = PanZoomType.None;
+
     public Clip Clone()
     {
         return new Clip
@@ -86,6 +96,12 @@ public class Clip
             PositionX = this.PositionX,
             PositionY = this.PositionY,
             Scale = this.Scale,
+            AudioFadeIn = this.AudioFadeIn,
+            AudioFadeOut = this.AudioFadeOut,
+            Rotation = this.Rotation,
+            FlipHorizontal = this.FlipHorizontal,
+            FlipVertical = this.FlipVertical,
+            PanZoom = this.PanZoom,
             Effects = this.Effects.Select(e => new ClipEffect(e.Type, e.Parameters)).ToList(),
             TransitionIn = this.TransitionIn != null ? new Transition { Type = this.TransitionIn.Type, Duration = this.TransitionIn.Duration } : null,
             TransitionOut = this.TransitionOut != null ? new Transition { Type = this.TransitionOut.Type, Duration = this.TransitionOut.Duration } : null

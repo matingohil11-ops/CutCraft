@@ -81,6 +81,23 @@ CutCraft/
   - Built-in `UpdateManager` for automated update manifest checks & downloads
   - Version 0.0 release update packaging (`update-manifest.json` & `updater.bat`)
   - One-click update check badge and screen reader announcements
+- [x] **Phase 8: Advanced Audio Engine**
+  - Audio Fade-In & Fade-Out envelope controls for both video audio and background music
+  - Automated Audio Ducking (`sidechaincompress`) reducing music volume during speech/dialogue
+  - Broadcast-standard Loudness Normalization (EBU R128 `loudnorm=I=-16:TP=-1.5:LRA=11`)
+- [x] **Phase 9: Keyframe Transformation & Orientation**
+  - Orientation & 90° clockwise rotation (`transpose=1`, `transpose=2`)
+  - Horizontal & Vertical flip mirroring (`hflip`, `vflip`)
+  - Ken Burns Pan & Zoom presets (`ZoomIn`, `ZoomOut`, `PanLeftToRight`, `PanRightToLeft`) via `zoompan`
+- [x] **Phase 10: Interactive Markers & Magnetic Snapping Engine**
+  - Interactive timeline markers with keyboard shortcuts (`M` to add marker, `Alt+M` for next marker)
+  - Magnetic timeline snapping to clip cut boundaries and marker points
+  - Accessible announcements and toolbar controls
+- [x] **Phase 11: Multi-Format Social Presets & GIF Exporter**
+  - YouTube Shorts / TikTok / Reels vertical 9:16 export preset (1080x1920)
+  - Instagram 1:1 Square export preset (1080x1080)
+  - High-Quality Animated GIF export via two-pass `palettegen` & `paletteuse`
+  - Audio-Only MP3 extraction preset (192 kbps)
 
 ---
 
@@ -92,6 +109,10 @@ CutCraft/
 | `S` | Split Clip at Playhead | "Split clip {name} into two parts" + Cut Audio Cue |
 | `I` | Set Clip In-Point | "Trimmed Start of {name} to {time}" + Cut Audio Cue |
 | `O` | Set Clip Out-Point | "Trimmed End of {name} to {time}" + Cut Audio Cue |
+| `M` | Add Marker at Playhead | "Added marker at {time}" + Cut Audio Cue |
+| `Alt+M` | Jump to Next Marker | "Jumped to {marker} at {time}" |
+| `N` | Toggle Magnetic Snapping | "Timeline magnetic snapping enabled/disabled" |
+| `Ctrl+R` | Rotate Selected Clip 90° | "Rotated '{name}' to {degrees} degrees" |
 | `Alt+Left` | Select Previous Clip | "Selected clip {i} of {n}: {name}" |
 | `Alt+Right` | Select Next Clip | "Selected clip {i} of {n}: {name}" |
 | `Delete` | Remove Selected Clip | "Removed clip {name}" |
@@ -99,7 +120,7 @@ CutCraft/
 | `Ctrl+Y` | Redo | Announces redone command + Redo Audio Cue |
 | `Left / Right` | Step 1 Frame Backward/Forward | Announces current timecode & active clip |
 | `Ctrl+M` | Add Music at Current Point | "Added music '{name}' at {time} to Audio track" |
-| `Ctrl+E` | Export MP4 | Opens export dialog |
+| `Ctrl+E` | Export Video / Audio / GIF | Opens export presets dialog |
 | `Ctrl+S` | Save Project | Saves project to JSON |
 
 ---

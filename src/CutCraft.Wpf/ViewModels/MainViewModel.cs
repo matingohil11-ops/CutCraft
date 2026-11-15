@@ -95,6 +95,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private double _exportProgress;
 
+    [ObservableProperty]
+    private bool _isSnappingEnabled = true;
+
     public double PlayheadSeconds
     {
         get => PlayheadPosition.TotalSeconds;
@@ -726,6 +729,11 @@ public partial class MainViewModel : ObservableObject
             clamped = CurrentProject.Duration;
         }
 
+        if (IsSnappingEnabled && !IsPlaying)
+        {
+            clamped = _timelineEngine.SnapTime(CurrentProject, clamped);
+        }
+
         PlayheadPosition = clamped;
         CurrentTimecode = TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate);
         OnPropertyChanged(nameof(PlayheadSeconds));
@@ -761,5 +769,132 @@ public partial class MainViewModel : ObservableObject
         {
             Notifier.Announce($"Export failed: {result.ErrorMessage}");
         }
+    }
+
+    // Phase 8: Audio Fade Commands
+    [RelayCommand]
+    public void SetClipAudioFade(Tuple<double, double> fades)
+    {
+        if (SelectedClip == null) return;
+        var cmd = new SetAudioFadeCommand(SelectedClip, fades.Item1, fades.Item2);
+        CommandManager.Execute(cmd);
+    }
+
+    // Phase 9: Transformation Commands
+    [RelayCommand]
+    public void RotateSelectedClip(int angle = -1)
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected to rotate.");
+            return;
+        }
+        var cmd = new RotateClipCommand(SelectedClip, angle);
+        CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
+    }
+
+    [RelayCommand]
+    public void ToggleFlipHorizontal()
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected to flip.");
+            return;
+        }
+        var cmd = new ToggleClipFlipCommand(SelectedClip, true);
+        CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
+    }
+
+    [RelayCommand]
+    public void ToggleFlipVertical()
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected to flip.");
+            return;
+        }
+        var cmd = new ToggleClipFlipCommand(SelectedClip, false);
+        CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
+    }
+
+    [RelayCommand]
+    public void SetSelectedClipPanZoom(PanZoomType type)
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected for Pan & Zoom.");
+            return;
+        }
+        var cmd = new SetPanZoomCommand(SelectedClip, type);
+        CommandManager.Execute(cmd);
+    }
+
+    // Phase 10: Marker & Snapping Commands
+    [RelayCommand]
+    public void AddMarkerAtPlayhead()
+    {
+        var markerNumber = CurrentProject.Markers.Count + 1;
+        var newMarker = new TimelineMarker(PlayheadPosition, $"Marker {markerNumber}", "#FFCC00");
+        var cmd = new AddMarkerCommand(CurrentProject, newMarker);
+        CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
+        Notifier.Announce($"Added marker at {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)}");
+    }
+
+    [RelayCommand]
+    public void JumpToNextMarker()
+    {
+        var nextMarker = CurrentProject.Markers
+            .Where(m => m.Time > PlayheadPosition)
+            .OrderBy(m => m.Time)
+            .FirstOrDefault();
+
+        if (nextMarker != null)
+        {
+            SeekTo(nextMarker.Time);
+            Notifier.Announce($"Jumped to {nextMarker.Label} at {TimelineEngine.FormatTimecode(nextMarker.Time, CurrentProject.FrameRate)}");
+        }
+        else
+        {
+            Notifier.Announce("No more markers ahead.");
+        }
+    }
+
+    [RelayCommand]
+    public void JumpToPreviousMarker()
+    {
+        var prevMarker = CurrentProject.Markers
+            .Where(m => m.Time < PlayheadPosition)
+            .OrderByDescending(m => m.Time)
+            .FirstOrDefault();
+
+        if (prevMarker != null)
+        {
+            SeekTo(prevMarker.Time);
+            Notifier.Announce($"Jumped to {prevMarker.Label} at {TimelineEngine.FormatTimecode(prevMarker.Time, CurrentProject.FrameRate)}");
+        }
+        else
+        {
+            Notifier.Announce("No previous markers.");
+        }
+    }
+
+    [RelayCommand]
+    public void DeleteMarker(TimelineMarker marker)
+    {
+        if (marker == null) return;
+        var cmd = new RemoveMarkerCommand(CurrentProject, marker);
+        CommandManager.Execute(cmd);
+        Notifier.Announce($"Removed {marker.Label}");
+    }
+
+    [RelayCommand]
+    public void ToggleSnapping()
+    {
+        IsSnappingEnabled = !IsSnappingEnabled;
+        Notifier.Announce($"Timeline magnetic snapping {(IsSnappingEnabled ? "enabled" : "disabled")}");
     }
 }

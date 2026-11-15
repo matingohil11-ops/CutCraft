@@ -40,13 +40,60 @@
                         AutomationProperties.Name="Clip playback speed slider" />
             </DockPanel>
 
-            <!-- Audio Volume -->
-            <TextBlock Text="Audio Volume" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,4,0,4" />
-            <DockPanel Margin="0,0,0,12">
-                <TextBlock DockPanel.Dock="Right" Text="{Binding Volume, StringFormat='{}{0:0%}'}" Foreground="{StaticResource AccentColor}" Width="45" TextAlignment="Right" />
-                <Slider Minimum="0.0" Maximum="2.0" Value="{Binding Volume}" SmallChange="0.05"
-                        AutomationProperties.Name="Clip audio volume slider" />
-            </DockPanel>
+            <!-- Audio Volume & Fades -->
+            <TextBlock Text="Audio Controls" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,4,0,4" />
+            <Border Background="#1E1E1E" Padding="10" CornerRadius="4" BorderBrush="{StaticResource BorderDark}" BorderThickness="1" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="Volume" Foreground="#AAAAAA" FontSize="11" />
+                    <DockPanel Margin="0,2,0,8">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Volume, StringFormat='{}{0:0%}'}" Foreground="{StaticResource AccentColor}" Width="45" TextAlignment="Right" />
+                        <Slider Minimum="0.0" Maximum="2.0" Value="{Binding Volume}" SmallChange="0.05" AutomationProperties.Name="Clip audio volume slider" />
+                    </DockPanel>
+
+                    <TextBlock Text="Audio Fade-In (seconds)" Foreground="#AAAAAA" FontSize="11" />
+                    <DockPanel Margin="0,2,0,8">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AudioFadeIn, StringFormat='{}{0:F1}s'}" Foreground="{StaticResource AccentColor}" Width="40" TextAlignment="Right" />
+                        <Slider Minimum="0.0" Maximum="5.0" Value="{Binding AudioFadeIn}" SmallChange="0.25" AutomationProperties.Name="Audio fade in duration slider" />
+                    </DockPanel>
+
+                    <TextBlock Text="Audio Fade-Out (seconds)" Foreground="#AAAAAA" FontSize="11" />
+                    <DockPanel Margin="0,2,0,4">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding AudioFadeOut, StringFormat='{}{0:F1}s'}" Foreground="{StaticResource AccentColor}" Width="40" TextAlignment="Right" />
+                        <Slider Minimum="0.0" Maximum="5.0" Value="{Binding AudioFadeOut}" SmallChange="0.25" AutomationProperties.Name="Audio fade out duration slider" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Clip Transform & Orientation (Phase 9) -->
+            <TextBlock Text="Transform &amp; Orientation" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,4,0,4" />
+            <Border Background="#1E1E1E" Padding="10" CornerRadius="4" BorderBrush="{StaticResource BorderDark}" BorderThickness="1" Margin="0,0,0,12">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="↺ Rotate 90°"
+                                Command="{Binding DataContext.RotateSelectedClipCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                Padding="8,4" Margin="0,0,6,0" Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                AutomationProperties.Name="Rotate selected clip 90 degrees clockwise" />
+                        <Button Content="↔ Flip H"
+                                Command="{Binding DataContext.ToggleFlipHorizontalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                Padding="8,4" Margin="0,0,6,0" Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                AutomationProperties.Name="Toggle horizontal mirror flip" />
+                        <Button Content="↕ Flip V"
+                                Command="{Binding DataContext.ToggleFlipVerticalCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                Padding="8,4" Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                AutomationProperties.Name="Toggle vertical mirror flip" />
+                    </StackPanel>
+
+                    <TextBlock Text="Pan &amp; Zoom (Ken Burns)" Foreground="#AAAAAA" FontSize="11" Margin="0,4,0,2" />
+                    <ComboBox SelectedValue="{Binding PanZoom}" SelectedValuePath="Tag" Background="#2D2D30" Foreground="{StaticResource TextLight}"
+                              AutomationProperties.Name="Ken Burns Pan and Zoom preset selector">
+                        <ComboBoxItem Content="None (Static)" Tag="{x:Static models:PanZoomType.None}" />
+                        <ComboBoxItem Content="Zoom In (Center)" Tag="{x:Static models:PanZoomType.ZoomIn}" />
+                        <ComboBoxItem Content="Zoom Out (Center)" Tag="{x:Static models:PanZoomType.ZoomOut}" />
+                        <ComboBoxItem Content="Pan Left to Right" Tag="{x:Static models:PanZoomType.PanLeftToRight}" />
+                        <ComboBoxItem Content="Pan Right to Left" Tag="{x:Static models:PanZoomType.PanRightToLeft}" />
+                    </ComboBox>
+                </StackPanel>
+            </Border>
 
             <!-- Transitions -->
             <TextBlock Text="Transition In" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,4,0,4" />

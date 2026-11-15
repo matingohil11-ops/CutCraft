@@ -2,5 +2,7 @@
   <PropertyGroup>
     <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
     <UseSharedCompilation>false</UseSharedCompilation>
+    <BuildInParallel>false</BuildInParallel>
+    <MaxCpuCount>1</MaxCpuCount>
   </PropertyGroup>
 </Project>

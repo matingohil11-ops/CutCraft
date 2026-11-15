@@ -17,21 +17,32 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <TextBlock Grid.Row="0" Text="Export Project as MP4" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextLight}" Margin="0,0,0,16" />
+        <TextBlock Grid.Row="0" Text="Export Video &amp; Audio - CutCraft" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextLight}" Margin="0,0,0,16" />
 
         <!-- Form Fields -->
         <StackPanel Grid.Row="1">
-            <TextBlock Text="Resolution &amp; Quality Preset" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,4" />
-            <ComboBox x:Name="PresetComboBox" SelectedIndex="0" Background="#2D2D30" Foreground="{StaticResource TextLight}" Margin="0,0,0,16"
-                      AutomationProperties.Name="Export quality preset selector">
+            <TextBlock Text="Resolution &amp; Format Preset" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,4" />
+            <ComboBox x:Name="PresetComboBox" SelectedIndex="0" Background="#2D2D30" Foreground="{StaticResource TextLight}" Margin="0,0,0,12"
+                      AutomationProperties.Name="Export quality preset selector" SelectionChanged="PresetComboBox_SelectionChanged">
                 <ComboBoxItem Content="1080p Full HD (1920x1080) - Recommended for YouTube &amp; Desktop" Tag="1080p" />
                 <ComboBoxItem Content="4K Ultra HD (3840x2160) - Highest Quality" Tag="4k" />
                 <ComboBoxItem Content="720p HD (1280x720) - Fast Export &amp; Web Sharing" Tag="720p" />
                 <ComboBoxItem Content="1080x1920 (9:16 Vertical) - YouTube Shorts &amp; Reels" Tag="vertical" />
+                <ComboBoxItem Content="1080x1080 (1:1 Square) - Instagram Feed" Tag="square" />
+                <ComboBoxItem Content="Animated GIF (Looping Animated GIF)" Tag="gif" />
+                <ComboBoxItem Content="MP3 Audio Only (Podcasts / Voice Extraction)" Tag="mp3" />
             </ComboBox>
 
+            <!-- Audio Enhancement Options (Phase 8) -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                <CheckBox x:Name="NormalizeAudioCheckBox" Content="Normalize Loudness (EBU R128)" Foreground="{StaticResource TextLight}" Margin="0,0,16,0"
+                          AutomationProperties.Name="Normalize audio loudness with EBU R128 filter" />
+                <CheckBox x:Name="AudioDuckingCheckBox" Content="Auto-Duck Music During Speech" Foreground="{StaticResource TextLight}"
+                          AutomationProperties.Name="Automatically reduce background music volume during speech" />
+            </StackPanel>
+
             <TextBlock Text="Output Destination File" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,4" />
-            <DockPanel Margin="0,0,0,16">
+            <DockPanel Margin="0,0,0,12">
                 <Button x:Name="BrowseButton" Content="Browse..." DockPanel.Dock="Right" Padding="12,4" Margin="8,0,0,0"
                         Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
                         Click="BrowseButton_Click" AutomationProperties.Name="Browse output file destination" />
@@ -40,7 +51,7 @@
                          AutomationProperties.Name="Output destination file path" />
             </DockPanel>
 
-            <TextBlock Text="Format: MP4 (H.264 Video + AAC Stereo Audio)" Foreground="#AAAAAA" FontSize="12" Margin="0,0,0,16" />
+            <TextBlock x:Name="FormatInfoTextBlock" Text="Format: MP4 (H.264 Video + AAC Stereo Audio)" Foreground="#AAAAAA" FontSize="12" Margin="0,0,0,12" />
 
             <!-- Progress Bar -->
             <TextBlock x:Name="StatusTextBlock" Text="Ready to export." Foreground="#00BCF9" FontSize="13" FontWeight="Medium" Margin="0,0,0,6"

@@ -31,6 +31,10 @@
         <KeyBinding Key="Right" Modifiers="Alt" Command="{Binding SelectNextClipCommand}" />
         <KeyBinding Key="Home" Command="{Binding JumpToStartCommand}" />
         <KeyBinding Key="End" Command="{Binding JumpToEndCommand}" />
+        <KeyBinding Key="M" Command="{Binding AddMarkerAtPlayheadCommand}" />
+        <KeyBinding Key="M" Modifiers="Alt" Command="{Binding JumpToNextMarkerCommand}" />
+        <KeyBinding Key="N" Command="{Binding ToggleSnappingCommand}" />
+        <KeyBinding Key="R" Modifiers="Ctrl" Command="{Binding RotateSelectedClipCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -61,6 +65,12 @@
                         <MenuItem Header="Set _In Point" InputGestureText="I" Command="{Binding TrimStartAtPlayheadCommand}" />
                         <MenuItem Header="Set _Out Point" InputGestureText="O" Command="{Binding TrimEndAtPlayheadCommand}" />
                         <MenuItem Header="_Delete Clip" InputGestureText="Del" Command="{Binding DeleteSelectedClipCommand}" />
+                        <Separator />
+                        <MenuItem Header="_Add Marker at Playhead" InputGestureText="M" Command="{Binding AddMarkerAtPlayheadCommand}" />
+                        <MenuItem Header="_Next Marker" InputGestureText="Alt+M" Command="{Binding JumpToNextMarkerCommand}" />
+                        <MenuItem Header="_Previous Marker" Command="{Binding JumpToPreviousMarkerCommand}" />
+                        <MenuItem Header="Toggle Magnetic _Snapping" InputGestureText="N" Command="{Binding ToggleSnappingCommand}" />
+                        <MenuItem Header="_Rotate Selected Clip 90°" InputGestureText="Ctrl+R" Command="{Binding RotateSelectedClipCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Speed">
                         <MenuItem Header="0.25x Slow Motion" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble025}" />
@@ -289,9 +299,16 @@
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                         <TextBlock Text="Timeline Tracks" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" VerticalAlignment="Center" />
                         <TextBlock Text=" • [S] Split | [I] Set In | [O] Set Out | [Alt+Arrows] Prev/Next Clip" FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="8,0,0,0" />
-                        <Button Content="🎵 Add Music at Point" Click="AddMusicAtPlayhead_Click" Margin="12,0,0,0" Padding="8,3"
+                        <Button Content="🎵 Add Music at Point" Click="AddMusicAtPlayhead_Click" Margin="12,0,4,0" Padding="8,3"
                                 Background="#2E8B57" Foreground="{StaticResource TextLight}" FontWeight="SemiBold"
                                 AutomationProperties.Name="Add music at current playhead position (Ctrl+M)" />
+                        <Button Content="📍 + Marker (M)" Command="{Binding AddMarkerAtPlayheadCommand}" Margin="4,0" Padding="8,3"
+                                Background="#333337" Foreground="#FFCC00" FontWeight="SemiBold" BorderBrush="{StaticResource BorderDark}"
+                                AutomationProperties.Name="Add marker at playhead position (Shortcut M)" />
+                        <Button Content="🧲 Snap" Command="{Binding ToggleSnappingCommand}" Margin="4,0" Padding="8,3"
+                                Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                ToolTip="Toggle magnetic snapping to cuts and markers (Shortcut N)"
+                                AutomationProperties.Name="Toggle magnetic snapping" />
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
