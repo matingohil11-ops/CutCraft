@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
+using System.Windows;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CutCraft.Core.Accessibility;
@@ -8,6 +11,7 @@ using CutCraft.Core.Models;
 using CutCraft.Core.Serialization;
 using CutCraft.Core.Subtitles;
 using CutCraft.Core.Timeline;
+using CutCraft.Core.Updates;
 using CutCraft.Media.Analysis;
 using CutCraft.Media.Export;
 
@@ -19,6 +23,11 @@ public partial class MainViewModel : ObservableObject
     private readonly IMediaAnalyzer _mediaAnalyzer = new FFprobeMediaAnalyzer();
     private readonly IMediaExporter _mediaExporter = new FFmpegProcessExporter();
     private readonly IAudioCueService _audioCues = new SystemAudioCueService();
+    private readonly UpdateManager _updateManager = new();
+
+    private readonly DispatcherTimer _playbackTimer;
+    private readonly Stopwatch _playbackStopwatch = new();
+    private TimeSpan _playbackStartTime = TimeSpan.Zero;
 
     [ObservableProperty]
     private Project _currentProject = Project.CreateDefault("My First Video");
@@ -45,6 +54,36 @@ public partial class MainViewModel : ObservableObject
     private bool _isPlaying;
 
     [ObservableProperty]
+    private string _playPauseButtonText = "▶ Play";
+
+    [ObservableProperty]
+    private string? _activeVideoPath;
+
+    [ObservableProperty]
+    private TimeSpan _activeVideoPosition = TimeSpan.Zero;
+
+    [ObservableProperty]
+    private bool _hasActiveVideo;
+
+    [ObservableProperty]
+    private string _previewOverlayMessage = "CutCraft Video Preview Screen";
+
+    [ObservableProperty]
+    private string _activeCaptionText = "";
+
+    [ObservableProperty]
+    private Visibility _activeCaptionVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private string _appVersionDisplay = "v0.0";
+
+    [ObservableProperty]
+    private string _updateButtonText = "🔄 Check Updates";
+
+    [ObservableProperty]
+    private double _playbackSpeed = 1.0;
+
+    [ObservableProperty]
     private double _zoomLevel = 100.0; // pixels per second
 
     [ObservableProperty]
@@ -56,8 +95,16 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private double _exportProgress;
 
+    public double PlayheadSeconds
+    {
+        get => PlayheadPosition.TotalSeconds;
+        set => SeekTo(TimeSpan.FromSeconds(Math.Max(0, value)));
+    }
+
     public CommandManager CommandManager { get; } = new();
     public TimelineAccessibilityNotifier Notifier { get; }
+
+    public event Action<string?, TimeSpan, bool>? PreviewStateChanged;
 
     public MainViewModel()
     {
@@ -66,16 +113,172 @@ public partial class MainViewModel : ObservableObject
         CommandManager.AccessibilityNotification += (s, msg) => AccessibilityStatus = msg;
 
         SelectedTrack = CurrentProject.Tracks.FirstOrDefault();
+
+        _playbackTimer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(20) // ~50fps smooth playhead & preview sync
+        };
+        _playbackTimer.Tick += PlaybackTimer_Tick;
+
+        UpdatePlaybackState(false);
+    }
+
+    private void PlaybackTimer_Tick(object? sender, EventArgs e)
+    {
+        if (!IsPlaying) return;
+
+        var elapsed = _playbackStopwatch.Elapsed;
+        var scaledElapsed = TimeSpan.FromSeconds(elapsed.TotalSeconds * PlaybackSpeed);
+        var newPosition = _playbackStartTime + scaledElapsed;
+
+        if (CurrentProject.Duration > TimeSpan.Zero && newPosition >= CurrentProject.Duration)
+        {
+            PlayheadPosition = CurrentProject.Duration;
+            CurrentTimecode = TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate);
+            OnPropertyChanged(nameof(PlayheadSeconds));
+            PausePlayback();
+            Notifier.Announce("Reached end of timeline.");
+            return;
+        }
+
+        PlayheadPosition = newPosition;
+        CurrentTimecode = TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate);
+        OnPropertyChanged(nameof(PlayheadSeconds));
+
+        UpdatePlaybackState(true);
+    }
+
+    [RelayCommand]
+    public void TogglePlayPause()
+    {
+        if (IsPlaying)
+        {
+            PausePlayback();
+        }
+        else
+        {
+            StartPlayback();
+        }
+    }
+
+    public void StartPlayback()
+    {
+        if (CurrentProject.Duration > TimeSpan.Zero && PlayheadPosition >= CurrentProject.Duration)
+        {
+            PlayheadPosition = TimeSpan.Zero;
+            OnPropertyChanged(nameof(PlayheadSeconds));
+        }
+
+        IsPlaying = true;
+        PlayPauseButtonText = "⏸ Pause";
+        _playbackStartTime = PlayheadPosition;
+        _playbackStopwatch.Restart();
+        _playbackTimer.Start();
+
+        UpdatePlaybackState(true);
+        Notifier.Announce("Playback started.");
+    }
+
+    public void PausePlayback()
+    {
+        IsPlaying = false;
+        PlayPauseButtonText = "▶ Play";
+        _playbackStopwatch.Stop();
+        _playbackTimer.Stop();
+
+        UpdatePlaybackState(false);
+        Notifier.Announce("Playback paused.");
+    }
+
+    public void UpdatePlaybackState(bool isPlaying)
+    {
+        // Find active video clip at playhead position across unmuted video tracks
+        var videoClip = CurrentProject.Tracks
+            .Where(t => t.Type == TrackType.Video && !t.IsMuted)
+            .SelectMany(t => t.Clips)
+            .FirstOrDefault(c => PlayheadPosition >= c.TimelineStart && PlayheadPosition < c.TimelineEnd);
+
+        if (videoClip != null && !string.IsNullOrEmpty(videoClip.AssetPath))
+        {
+            HasActiveVideo = true;
+            ActiveVideoPath = videoClip.AssetPath;
+            var relativeSec = (PlayheadPosition - videoClip.TimelineStart).TotalSeconds * videoClip.Speed;
+            ActiveVideoPosition = videoClip.InPoint + TimeSpan.FromSeconds(relativeSec);
+        }
+        else
+        {
+            HasActiveVideo = false;
+            ActiveVideoPath = null;
+            ActiveVideoPosition = TimeSpan.Zero;
+            PreviewOverlayMessage = CurrentProject.Tracks.Any(t => t.Clips.Count > 0)
+                ? "No media at current playhead position"
+                : "CutCraft Video Preview Screen (Import media to begin)";
+        }
+
+        // Active subtitle caption
+        var activeCap = CurrentProject.Captions
+            .FirstOrDefault(c => PlayheadPosition >= c.StartTime && PlayheadPosition <= c.EndTime);
+        if (activeCap != null && !string.IsNullOrWhiteSpace(activeCap.Text))
+        {
+            ActiveCaptionText = activeCap.Text;
+            ActiveCaptionVisibility = Visibility.Visible;
+        }
+        else
+        {
+            ActiveCaptionText = "";
+            ActiveCaptionVisibility = Visibility.Collapsed;
+        }
+
+        PreviewStateChanged?.Invoke(ActiveVideoPath, ActiveVideoPosition, isPlaying);
+    }
+
+    [RelayCommand]
+    public void JumpToStart()
+    {
+        SeekTo(TimeSpan.Zero);
+    }
+
+    [RelayCommand]
+    public void JumpToEnd()
+    {
+        SeekTo(CurrentProject.Duration);
+    }
+
+    [RelayCommand]
+    public async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            UpdateButtonText = "🔄 Checking...";
+            Notifier.Announce("Checking for CutCraft updates...");
+            var result = await _updateManager.CheckForUpdatesAsync();
+            UpdateButtonText = result.HasUpdate ? $"⬆ Update to {result.LatestVersion}" : "✔ v0.0 Up to date";
+            Notifier.Announce(result.Message);
+        }
+        catch (Exception ex)
+        {
+            UpdateButtonText = "🔄 Check Updates";
+            Notifier.Announce($"Update check failed: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    public void ShowAbout()
+    {
+        Notifier.Announce($"CutCraft {AppVersionDisplay} - Accessible C# Desktop Video Editor");
     }
 
     [RelayCommand]
     public void NewProject()
     {
+        if (IsPlaying) PausePlayback();
         CurrentProject = Project.CreateDefault("New Video Project");
         CommandManager.Clear();
         PlayheadPosition = TimeSpan.Zero;
+        OnPropertyChanged(nameof(PlayheadSeconds));
         SelectedClip = null;
         SelectedTrack = CurrentProject.Tracks.FirstOrDefault();
+        UpdatePlaybackState(false);
         Notifier.Announce("Created new project.");
     }
 
@@ -84,11 +287,14 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
+            if (IsPlaying) PausePlayback();
             CurrentProject = ProjectSerializer.LoadFromFile(filePath);
             CommandManager.Clear();
             PlayheadPosition = TimeSpan.Zero;
+            OnPropertyChanged(nameof(PlayheadSeconds));
             SelectedClip = null;
             SelectedTrack = CurrentProject.Tracks.FirstOrDefault();
+            UpdatePlaybackState(false);
             Notifier.Announce($"Loaded project {CurrentProject.Name}");
         }
         catch (Exception ex)
@@ -141,6 +347,7 @@ public partial class MainViewModel : ObservableObject
                 SelectedClip = newClip;
             }
 
+            UpdatePlaybackState(IsPlaying);
             Notifier.Announce($"Imported {asset.Name} ({asset.Duration.TotalSeconds:F1}s)");
         }
         catch (Exception ex)
@@ -191,6 +398,7 @@ public partial class MainViewModel : ObservableObject
             SelectedClip = newClip;
             SelectedTrack = audioTrack;
 
+            UpdatePlaybackState(IsPlaying);
             Notifier.Announce($"Added music '{asset.Name}' at {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)} to {audioTrack.Name}");
         }
         catch (Exception ex)
@@ -240,6 +448,7 @@ public partial class MainViewModel : ObservableObject
         SelectedClip = newClip;
         SelectedTrack = targetTrack;
 
+        UpdatePlaybackState(IsPlaying);
         Notifier.Announce($"Placed '{SelectedAsset.Name}' at {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)} on {targetTrack.Name}");
     }
 
@@ -254,6 +463,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new MoveClipCommand(SelectedTrack, SelectedTrack, SelectedClip, PlayheadPosition);
         CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
         Notifier.Announce($"Moved clip '{SelectedClip.Name}' to {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)}");
     }
 
@@ -283,6 +493,7 @@ public partial class MainViewModel : ObservableObject
         CommandManager.Execute(cmd);
         _audioCues.PlayCutCue();
         SelectedClip = SelectedTrack.Clips.FirstOrDefault(c => c.TimelineStart == PlayheadPosition);
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]
@@ -306,6 +517,7 @@ public partial class MainViewModel : ObservableObject
         var cmd = new TrimClipCommand(SelectedClip, TrimEdge.Start, newInPoint);
         CommandManager.Execute(cmd);
         _audioCues.PlayCutCue();
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]
@@ -329,6 +541,7 @@ public partial class MainViewModel : ObservableObject
         var cmd = new TrimClipCommand(SelectedClip, TrimEdge.End, newOutPoint);
         CommandManager.Execute(cmd);
         _audioCues.PlayCutCue();
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]
@@ -343,6 +556,7 @@ public partial class MainViewModel : ObservableObject
         var cmd = new RemoveClipCommand(SelectedTrack, SelectedClip);
         CommandManager.Execute(cmd);
         SelectedClip = null;
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]
@@ -356,6 +570,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new ChangeClipSpeedCommand(SelectedClip, multiplier);
         CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]
@@ -383,6 +598,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new DetachAudioCommand(CurrentProject, SelectedClip);
         CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]
@@ -395,6 +611,7 @@ public partial class MainViewModel : ObservableObject
 
         CurrentProject.Captions.Add(caption);
         SelectedCaption = caption;
+        UpdatePlaybackState(IsPlaying);
         Notifier.Announce($"Added caption: '{text}' at {start:mm\\:ss}");
     }
 
@@ -409,6 +626,7 @@ public partial class MainViewModel : ObservableObject
             {
                 CurrentProject.Captions.Add(item);
             }
+            UpdatePlaybackState(IsPlaying);
             Notifier.Announce($"Imported {items.Count} subtitles from {Path.GetFileName(filePath)}");
         }
         catch (Exception ex)
@@ -438,6 +656,7 @@ public partial class MainViewModel : ObservableObject
         {
             CommandManager.Undo();
             _audioCues.PlayUndoCue();
+            UpdatePlaybackState(IsPlaying);
         }
         else
         {
@@ -452,6 +671,7 @@ public partial class MainViewModel : ObservableObject
         {
             CommandManager.Redo();
             _audioCues.PlayRedoCue();
+            UpdatePlaybackState(IsPlaying);
         }
         else
         {
@@ -500,14 +720,31 @@ public partial class MainViewModel : ObservableObject
 
     public void SeekTo(TimeSpan targetTime)
     {
-        PlayheadPosition = targetTime;
+        var clamped = targetTime < TimeSpan.Zero ? TimeSpan.Zero : targetTime;
+        if (CurrentProject.Duration > TimeSpan.Zero && clamped > CurrentProject.Duration)
+        {
+            clamped = CurrentProject.Duration;
+        }
+
+        PlayheadPosition = clamped;
         CurrentTimecode = TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate);
+        OnPropertyChanged(nameof(PlayheadSeconds));
+
+        if (IsPlaying)
+        {
+            _playbackStartTime = PlayheadPosition;
+            _playbackStopwatch.Restart();
+        }
+
+        UpdatePlaybackState(IsPlaying);
         _audioCues.PlaySeekCue();
     }
 
     [RelayCommand]
     public async Task ExportVideoAsync(ExportSettings settings)
     {
+        if (IsPlaying) PausePlayback();
+
         IsExporting = true;
         ExportProgress = 0.0;
         Notifier.Announce($"Exporting video to {Path.GetFileName(settings.OutputPath)}...");

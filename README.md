@@ -72,8 +72,15 @@ CutCraft/
   - Full keyboard accessibility with clip navigation (`Alt+Left` / `Alt+Right`)
   - Screen reader live announcements (`AutomationProperties.LiveSetting="Assertive"`)
   - Distinct auditory cues (`SystemAudioCueService`) for split cuts, boundaries, seeking, and undo/redo
-- [ ] **Phase 6: Proxy Media & Performance Hardening**
-- [ ] **Phase 7: Packaging & Auto-Updates (Velopack & MSIX)**
+- [x] **Phase 6: Video Preview Playback Engine**
+  - Real-time video preview playback engine (`MediaElement` with high-precision `DispatcherTimer`)
+  - Active video clip switching and timeline playhead synchronization
+  - Transport controls (`Space` / `K` Play-Pause, `J` / `L` frame stepping, `Home` / `End`)
+  - Live SubRip subtitle/caption overlay rendering
+- [x] **Phase 7: Auto-Updater (Version 0.0)**
+  - Built-in `UpdateManager` for automated update manifest checks & downloads
+  - Version 0.0 release update packaging (`update-manifest.json` & `updater.bat`)
+  - One-click update check badge and screen reader announcements
 
 ---
 
@@ -94,3 +101,13 @@ CutCraft/
 | `Ctrl+M` | Add Music at Current Point | "Added music '{name}' at {time} to Audio track" |
 | `Ctrl+E` | Export MP4 | Opens export dialog |
 | `Ctrl+S` | Save Project | Saves project to JSON |
+
+---
+
+## Contributors
+
+- [@matingohil11-ops](https://github.com/matingohil11-ops)
+- [@swarup-developer](https://github.com/swarup-developer)
+
+See [CONTRIBUTORS.md](file:///C:/Users/admin/.gemini/antigravity/scratch/CutCraft/CONTRIBUTORS.md) for the contributor list.
+

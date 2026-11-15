@@ -11,8 +11,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CutCraft.Core\CutCraft.Core.csproj" />
-    <ProjectReference Include="..\CutCraft.Media\CutCraft.Media.csproj" />
+    <ProjectReference Include="..\CutCraft.Core\CutCraft.Core.csproj" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\CutCraft.Media\CutCraft.Media.csproj" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
   <ItemGroup>

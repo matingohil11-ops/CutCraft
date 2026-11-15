@@ -17,6 +17,8 @@
         <converters:DurationToWidthConverter x:Key="DurationToWidthConverter" />
         <converters:AssetTypeToBrushConverter x:Key="AssetTypeToBrushConverter" />
         <converters:AssetTypeToIconConverter x:Key="AssetTypeToIconConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
 
         <sys:Double x:Key="SystemDouble025">0.25</sys:Double>
         <sys:Double x:Key="SystemDouble05">0.5</sys:Double>

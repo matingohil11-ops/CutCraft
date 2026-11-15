@@ -32,6 +32,8 @@ bld/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+publish/
+*.zip
 
 ## OS Files
 Thumbs.db

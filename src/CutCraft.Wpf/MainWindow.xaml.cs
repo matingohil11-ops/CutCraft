@@ -11,10 +11,83 @@ namespace CutCraft.Wpf;
 public partial class MainWindow : Window
 {
     private MainViewModel Vm => (MainViewModel)DataContext;
+    private string? _currentMediaSource;
 
     public MainWindow()
     {
         InitializeComponent();
+        Loaded += MainWindow_Loaded;
+    }
+
+    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        Vm.PreviewStateChanged += OnPreviewStateChanged;
+
+        VideoPreviewElement.MediaOpened += (s, args) =>
+        {
+            if (Vm.IsPlaying)
+            {
+                VideoPreviewElement.Position = Vm.ActiveVideoPosition;
+                VideoPreviewElement.Play();
+            }
+            else
+            {
+                VideoPreviewElement.Position = Vm.ActiveVideoPosition;
+                VideoPreviewElement.Pause();
+            }
+        };
+
+        VideoPreviewElement.MediaFailed += (s, args) =>
+        {
+            Vm.Notifier.Announce($"Media preview notice: {args.ErrorException?.Message}");
+        };
+    }
+
+    private void OnPreviewStateChanged(string? sourcePath, TimeSpan position, bool isPlaying)
+    {
+        if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+        {
+            if (_currentMediaSource != null)
+            {
+                try
+                {
+                    VideoPreviewElement.Stop();
+                    VideoPreviewElement.Source = null;
+                }
+                catch { }
+                _currentMediaSource = null;
+            }
+            return;
+        }
+
+        if (_currentMediaSource != sourcePath)
+        {
+            _currentMediaSource = sourcePath;
+            try
+            {
+                VideoPreviewElement.Source = new Uri(sourcePath, UriKind.Absolute);
+            }
+            catch { }
+        }
+
+        try
+        {
+            if (isPlaying)
+            {
+                var drift = (VideoPreviewElement.Position - position).Duration();
+                if (drift > TimeSpan.FromMilliseconds(250))
+                {
+                    VideoPreviewElement.Position = position;
+                }
+                VideoPreviewElement.Play();
+            }
+            else
+            {
+                VideoPreviewElement.Position = position;
+                VideoPreviewElement.Pause();
+            }
+        }
+        catch { }
     }
 
     private void OpenProject_Click(object sender, RoutedEventArgs e)
