@@ -40,7 +40,10 @@ public class UpdateManager
             if (target.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                 target.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                var json = await _httpClient.GetStringAsync(target);
+                var cacheBustUrl = target.Contains('?') 
+                    ? $"{target}&_t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}" 
+                    : $"{target}?_t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                var json = await _httpClient.GetStringAsync(cacheBustUrl);
                 updateInfo = JsonSerializer.Deserialize<UpdateInfo>(json, new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true

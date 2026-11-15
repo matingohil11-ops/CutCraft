@@ -5,6 +5,6 @@
   "releaseNotes": "CutCraft v0.1.1 Release Update:\n- Video player playback fix: smooth frame timing and eliminated freeze loop\n- Spacebar play/pause key interception across all controls (PreviewKeyDown)\n- Media import auto-seek to clip start and pure C# MP4 metadata parser\n- Live subtitle and caption overlay preview\n- Auto-updater integration and version bump to 0.1.1",
   "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v0.1.1/CutCraft-v0.1.1-win-x64.zip",
   "mandatory": false,
-  "fileSizeBytes": 905752,
-  "sha256Checksum": "CDE1215472CDF5ACCFCD1FC9D880E910A4C9466A8BF48D56E564FC85D6AFFEF3"
+  "fileSizeBytes": 905807,
+  "sha256Checksum": "5E9BF9CA4BF8ACE9D06DD58475B0EAACEA8AF65E71DFE99876FDD05A01F4E9AC"
 }
