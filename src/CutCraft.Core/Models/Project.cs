@@ -25,6 +25,7 @@ public class Project
     public ObservableCollection<Track> Tracks { get; set; } = new();
     public ObservableCollection<TextOverlay> Overlays { get; set; } = new();
     public ObservableCollection<CaptionItem> Captions { get; set; } = new();
+    public ObservableCollection<TimelineMarker> Markers { get; set; } = new();
 
     [JsonIgnore]
     public TimeSpan Duration

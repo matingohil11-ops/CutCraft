@@ -1,5 +1,7 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Input;
+using CutCraft.Core.Models;
 using CutCraft.Wpf.ViewModels;
 using CutCraft.Wpf.Views;
 using Microsoft.Win32;
@@ -99,6 +101,48 @@ public partial class MainWindow : Window
         if (sfd.ShowDialog() == true)
         {
             Vm.ExportSrtFile(sfd.FileName);
+        }
+    }
+
+    private async void AddMusicAtPlayhead_Click(object sender, RoutedEventArgs e)
+    {
+        var ofd = new OpenFileDialog
+        {
+            Filter = "Audio & Music Files (*.mp3;*.wav;*.m4a;*.aac;*.wma;*.flac;*.ogg)|*.mp3;*.wav;*.m4a;*.aac;*.wma;*.flac;*.ogg|All files (*.*)|*.*",
+            Title = $"Add Music at Current Point ({Vm.CurrentTimecode})",
+            Multiselect = true
+        };
+
+        if (ofd.ShowDialog() == true)
+        {
+            foreach (var file in ofd.FileNames)
+            {
+                await Vm.AddMusicAtPlayheadAsync(file);
+            }
+        }
+    }
+
+    private void Clip_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement element && element.DataContext is Clip clip)
+        {
+            Vm.SelectedClip = clip;
+            var track = Vm.CurrentProject.Tracks.FirstOrDefault(t => t.Clips.Contains(clip));
+            if (track != null)
+            {
+                Vm.SelectedTrack = track;
+            }
+            Vm.Notifier.Announce($"Selected clip: {clip.Name}");
+        }
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (e.Key == Key.M && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        {
+            AddMusicAtPlayhead_Click(this, new RoutedEventArgs());
+            e.Handled = true;
         }
     }
 }

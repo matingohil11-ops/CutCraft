@@ -91,5 +91,6 @@ CutCraft/
 | `Ctrl+Z` | Undo | Announces undone command + Undo Audio Cue |
 | `Ctrl+Y` | Redo | Announces redone command + Redo Audio Cue |
 | `Left / Right` | Step 1 Frame Backward/Forward | Announces current timecode & active clip |
+| `Ctrl+M` | Add Music at Current Point | "Added music '{name}' at {time} to Audio track" |
 | `Ctrl+E` | Export MP4 | Opens export dialog |
 | `Ctrl+S` | Save Project | Saves project to JSON |

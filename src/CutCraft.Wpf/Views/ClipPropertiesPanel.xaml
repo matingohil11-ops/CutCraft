@@ -24,6 +24,11 @@
 
                     <TextBlock Text="{Binding Type, StringFormat='Type: {0}'}" Foreground="#00BCF9" FontSize="12" Margin="0,0,0,4" />
                     <TextBlock Text="{Binding TimelineDuration, StringFormat='Duration: {0:mm\\:ss\\.fff}'}" Foreground="{StaticResource TextLight}" FontSize="12" Margin="0,0,0,4" />
+                    <TextBlock Text="{Binding TimelineStart, StringFormat='Timeline Start: {0:mm\\:ss\\.fff}'}" Foreground="#FFD700" FontSize="12" Margin="0,0,0,6" />
+                    <Button Content="📍 Align to Current Playhead"
+                            Command="{Binding DataContext.MoveSelectedClipToPlayheadCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            Padding="6,4" Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                            AutomationProperties.Name="Move selected clip start point to current playhead position" />
                 </StackPanel>
             </Border>
 

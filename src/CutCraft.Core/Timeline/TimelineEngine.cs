@@ -39,6 +39,17 @@ public class TimelineEngine
             }
         }
 
+        // Check markers for snapping
+        foreach (var marker in project.Markers)
+        {
+            var diffMarker = (marker.Time - targetTime).Duration();
+            if (diffMarker < minDiff)
+            {
+                minDiff = diffMarker;
+                bestSnap = marker.Time;
+            }
+        }
+
         return bestSnap;
     }
 
@@ -62,6 +73,44 @@ public class TimelineEngine
     public Clip? GetClipAtTimeOnTrack(Track track, TimeSpan time)
     {
         return track.Clips.FirstOrDefault(c => time >= c.TimelineStart && time < c.TimelineEnd);
+    }
+
+    public TimeSpan GetNextEditPoint(Project project, TimeSpan currentTime)
+    {
+        var editPoints = new SortedSet<TimeSpan>();
+        foreach (var track in project.Tracks)
+        {
+            foreach (var clip in track.Clips)
+            {
+                if (clip.TimelineStart > currentTime) editPoints.Add(clip.TimelineStart);
+                if (clip.TimelineEnd > currentTime) editPoints.Add(clip.TimelineEnd);
+            }
+        }
+
+        if (project.Duration > currentTime)
+        {
+            editPoints.Add(project.Duration);
+        }
+
+        return editPoints.Count > 0 ? editPoints.Min : currentTime;
+    }
+
+    public TimeSpan GetPreviousEditPoint(Project project, TimeSpan currentTime)
+    {
+        var editPoints = new SortedSet<TimeSpan>();
+        editPoints.Add(TimeSpan.Zero);
+
+        foreach (var track in project.Tracks)
+        {
+            foreach (var clip in track.Clips)
+            {
+                if (clip.TimelineStart < currentTime) editPoints.Add(clip.TimelineStart);
+                if (clip.TimelineEnd < currentTime) editPoints.Add(clip.TimelineEnd);
+            }
+        }
+
+        var smallerPoints = editPoints.Where(t => t < currentTime).ToList();
+        return smallerPoints.Count > 0 ? smallerPoints.Max() : TimeSpan.Zero;
     }
 
     public void RippleShiftAfter(Track track, TimeSpan afterTime, TimeSpan delta)

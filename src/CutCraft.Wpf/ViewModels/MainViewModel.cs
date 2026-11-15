@@ -150,6 +150,114 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task AddMusicAtPlayheadAsync(string filePath)
+    {
+        try
+        {
+            Notifier.Announce($"Adding music {Path.GetFileName(filePath)} at current point ({CurrentTimecode})...");
+            var asset = await _mediaAnalyzer.AnalyzeAssetAsync(filePath);
+
+            if (!CurrentProject.MediaLibrary.Any(a => a.FilePath == asset.FilePath))
+            {
+                CurrentProject.MediaLibrary.Add(asset);
+            }
+
+            var audioTrack = CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Audio);
+            if (audioTrack == null)
+            {
+                audioTrack = new Track
+                {
+                    Name = "Audio / Music",
+                    Type = TrackType.Audio,
+                    Order = CurrentProject.Tracks.Count
+                };
+                CurrentProject.Tracks.Add(audioTrack);
+            }
+
+            var newClip = new Clip
+            {
+                Name = asset.Name,
+                AssetId = asset.Id,
+                AssetPath = asset.FilePath,
+                Type = AssetType.Audio,
+                InPoint = TimeSpan.Zero,
+                OutPoint = asset.Duration > TimeSpan.Zero ? asset.Duration : TimeSpan.FromSeconds(10),
+                TimelineStart = PlayheadPosition,
+                Volume = 1.0
+            };
+
+            int insertIndex = audioTrack.Clips.TakeWhile(c => c.TimelineStart <= PlayheadPosition).Count();
+            CommandManager.Execute(new AddClipCommand(audioTrack, newClip, insertIndex));
+            SelectedClip = newClip;
+            SelectedTrack = audioTrack;
+
+            Notifier.Announce($"Added music '{asset.Name}' at {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)} to {audioTrack.Name}");
+        }
+        catch (Exception ex)
+        {
+            Notifier.Announce($"Failed to add music: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    public void AddSelectedAssetAtPlayhead()
+    {
+        if (SelectedAsset == null)
+        {
+            Notifier.Announce("No media asset selected.");
+            return;
+        }
+
+        var targetTrack = SelectedAsset.Type == AssetType.Audio
+            ? CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Audio)
+            : (SelectedTrack ?? CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Video));
+
+        if (targetTrack == null)
+        {
+            targetTrack = new Track
+            {
+                Name = SelectedAsset.Type == AssetType.Audio ? "Audio / Music" : "Video Track",
+                Type = SelectedAsset.Type == AssetType.Audio ? TrackType.Audio : TrackType.Video,
+                Order = CurrentProject.Tracks.Count
+            };
+            CurrentProject.Tracks.Add(targetTrack);
+        }
+
+        var newClip = new Clip
+        {
+            Name = SelectedAsset.Name,
+            AssetId = SelectedAsset.Id,
+            AssetPath = SelectedAsset.FilePath,
+            Type = SelectedAsset.Type,
+            InPoint = TimeSpan.Zero,
+            OutPoint = SelectedAsset.Duration > TimeSpan.Zero ? SelectedAsset.Duration : TimeSpan.FromSeconds(5),
+            TimelineStart = PlayheadPosition,
+            Volume = 1.0
+        };
+
+        int insertIndex = targetTrack.Clips.TakeWhile(c => c.TimelineStart <= PlayheadPosition).Count();
+        CommandManager.Execute(new AddClipCommand(targetTrack, newClip, insertIndex));
+        SelectedClip = newClip;
+        SelectedTrack = targetTrack;
+
+        Notifier.Announce($"Placed '{SelectedAsset.Name}' at {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)} on {targetTrack.Name}");
+    }
+
+    [RelayCommand]
+    public void MoveSelectedClipToPlayhead()
+    {
+        if (SelectedClip == null || SelectedTrack == null)
+        {
+            Notifier.Announce("No clip selected to move to current point.");
+            return;
+        }
+
+        var cmd = new MoveClipCommand(SelectedTrack, SelectedTrack, SelectedClip, PlayheadPosition);
+        CommandManager.Execute(cmd);
+        Notifier.Announce($"Moved clip '{SelectedClip.Name}' to {TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate)}");
+    }
+
+    [RelayCommand]
     public void SplitAtPlayhead()
     {
         if (SelectedTrack == null)

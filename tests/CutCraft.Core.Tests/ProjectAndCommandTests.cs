@@ -184,4 +184,53 @@ public class ProjectAndCommandTests
         var noSnap = engine.SnapTime(project, TimeSpan.FromSeconds(10.0));
         Assert.Equal(TimeSpan.FromSeconds(10.0), noSnap);
     }
+
+    [Fact]
+    public void AddMusicClip_AtArbitraryTimelinePoint_SetsTimelineStartAndDuration()
+    {
+        var project = Project.CreateDefault("Music Test");
+        var audioTrack = project.Tracks.First(t => t.Type == TrackType.Audio);
+
+        var musicStartPoint = TimeSpan.FromSeconds(15.5);
+        var musicClip = new Clip
+        {
+            Name = "Background Beat.mp3",
+            Type = AssetType.Audio,
+            TimelineStart = musicStartPoint,
+            InPoint = TimeSpan.Zero,
+            OutPoint = TimeSpan.FromSeconds(30)
+        };
+
+        var commandManager = new CommandManager();
+        commandManager.Execute(new AddClipCommand(audioTrack, musicClip));
+
+        Assert.Single(audioTrack.Clips);
+        Assert.Equal(musicStartPoint, audioTrack.Clips[0].TimelineStart);
+        Assert.Equal(TimeSpan.FromSeconds(45.5), audioTrack.Clips[0].TimelineEnd);
+        Assert.Equal(TimeSpan.FromSeconds(45.5), project.Duration);
+    }
+
+    [Fact]
+    public void MoveClipCommand_MovesAudioClipToAnyPoint()
+    {
+        var track = new Track { Name = "Audio Track", Type = TrackType.Audio };
+        var clip = new Clip
+        {
+            Name = "Music 1",
+            Type = AssetType.Audio,
+            TimelineStart = TimeSpan.FromSeconds(5),
+            InPoint = TimeSpan.Zero,
+            OutPoint = TimeSpan.FromSeconds(20)
+        };
+        track.Clips.Add(clip);
+
+        var commandManager = new CommandManager();
+        var newPoint = TimeSpan.FromSeconds(12.25);
+        commandManager.Execute(new MoveClipCommand(track, track, clip, newPoint));
+
+        Assert.Equal(newPoint, clip.TimelineStart);
+
+        commandManager.Undo();
+        Assert.Equal(TimeSpan.FromSeconds(5), clip.TimelineStart);
+    }
 }

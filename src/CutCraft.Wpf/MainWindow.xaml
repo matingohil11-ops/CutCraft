@@ -66,6 +66,10 @@
                         <MenuItem Header="2.0x Double Speed" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble20}" />
                     </MenuItem>
                     <MenuItem Header="_Audio">
+                        <MenuItem Header="_Add Music at Current Position..." InputGestureText="Ctrl+M" Click="AddMusicAtPlayhead_Click" />
+                        <MenuItem Header="_Place Selected Media at Current Position" Command="{Binding AddSelectedAssetAtPlayheadCommand}" />
+                        <MenuItem Header="_Move Selected Clip to Current Position" Command="{Binding MoveSelectedClipToPlayheadCommand}" />
+                        <Separator />
                         <MenuItem Header="_Detach Audio to Track" Command="{Binding DetachAudioCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Captions">
@@ -128,9 +132,17 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
 
-                        <Button Grid.Row="1" Content="+ Import Media Files..." Margin="0,8,0,0" Padding="10,6"
-                                Click="ImportMedia_Click" AutomationProperties.Name="Import video, audio, or image files"
-                                Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
+                        <StackPanel Grid.Row="1" Margin="0,8,0,0">
+                            <Button Content="🎵 + Add Music at Current Point..." Margin="0,0,0,4" Padding="10,6"
+                                    Click="AddMusicAtPlayhead_Click" AutomationProperties.Name="Select and add music at current playhead position (Ctrl+M)"
+                                    Background="#2E8B57" Foreground="{StaticResource TextLight}" FontWeight="SemiBold" BorderBrush="{StaticResource BorderDark}" />
+                            <Button Content="📍 Place Selected Asset at Current Point" Margin="0,0,0,4" Padding="10,5"
+                                    Command="{Binding AddSelectedAssetAtPlayheadCommand}" AutomationProperties.Name="Place selected media asset at current playhead position"
+                                    Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
+                            <Button Content="+ Import Media Files..." Padding="10,5"
+                                    Click="ImportMedia_Click" AutomationProperties.Name="Import video, audio, or image files"
+                                    Background="#2D2D30" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
+                        </StackPanel>
                     </Grid>
                 </TabItem>
 
@@ -230,6 +242,9 @@
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                         <TextBlock Text="Timeline Tracks" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" VerticalAlignment="Center" />
                         <TextBlock Text=" • [S] Split | [I] Set In | [O] Set Out | [Alt+Arrows] Prev/Next Clip" FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <Button Content="🎵 Add Music at Point" Click="AddMusicAtPlayhead_Click" Margin="12,0,0,0" Padding="8,3"
+                                Background="#2E8B57" Foreground="{StaticResource TextLight}" FontWeight="SemiBold"
+                                AutomationProperties.Name="Add music at current playhead position (Ctrl+M)" />
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -268,18 +283,23 @@
                                             </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemContainerStyle>
                                                 <Style TargetType="ContentPresenter">
-                                                    <Setter Property="Canvas.Left" Value="{Binding TimelineStart.TotalSeconds, ConverterParameter=100}" />
+                                                    <Setter Property="Canvas.Left" Value="{Binding TimelineStart, Converter={StaticResource TimeToPixelConverter}}" />
                                                     <Setter Property="Canvas.Top" Value="4" />
                                                 </Style>
                                             </ItemsControl.ItemContainerStyle>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border Height="56" MinWidth="60" Background="{StaticResource ClipVideoBrush}"
+                                                    <Border Height="56" MinWidth="60" Width="{Binding TimelineDuration, Converter={StaticResource DurationToWidthConverter}}"
+                                                            Background="{Binding Type, Converter={StaticResource AssetTypeToBrushConverter}}"
                                                             BorderBrush="#FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,4"
+                                                            MouseLeftButtonDown="Clip_MouseLeftButtonDown" Cursor="Hand"
                                                             AutomationProperties.Name="{Binding Name, StringFormat='Clip: {0}'}"
-                                                            AutomationProperties.HelpText="Press S to split, I for In-point, O for Out-point">
+                                                            AutomationProperties.HelpText="Click to select. Press S to split, I for In-point, O for Out-point">
                                                         <Grid>
-                                                            <TextBlock Text="{Binding Name}" Foreground="#FFFFFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Top">
+                                                                <TextBlock Text="{Binding Type, Converter={StaticResource AssetTypeToIconConverter}}" FontSize="11" Margin="0,0,3,0" />
+                                                                <TextBlock Text="{Binding Name}" Foreground="#FFFFFF" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                            </StackPanel>
                                                             <TextBlock Text="{Binding TimelineDuration, StringFormat='{}{0:mm\\:ss\\.f}'}" VerticalAlignment="Bottom" HorizontalAlignment="Right"
                                                                        FontSize="10" Foreground="#DDDDDD" />
                                                         </Grid>
