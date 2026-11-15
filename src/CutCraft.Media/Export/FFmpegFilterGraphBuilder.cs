@@ -33,18 +33,23 @@ public class FFmpegFilterGraphBuilder
             return idx;
         }
 
-        var videoTracks = project.Tracks.Where(t => t.Type == TrackType.Video && !t.IsMuted).OrderBy(t => t.Order).ToList();
+        var baseVideoTrack = project.Tracks.FirstOrDefault(t => t.Type == TrackType.Video && !t.IsMuted);
+        var overlayTracks = project.Tracks.Where(t => (t.Type == TrackType.Overlay || (t.Type == TrackType.Video && t != baseVideoTrack)) && !t.IsMuted).OrderBy(t => t.Order).ToList();
         var audioTracks = project.Tracks.Where(t => t.Type == TrackType.Audio && !t.IsMuted).OrderBy(t => t.Order).ToList();
 
         var filterGraph = new StringBuilder();
-        var videoSegmentLabels = new List<string>();
-        var audioSegmentLabels = new List<string>();
+        var baseVideoSegments = new List<string>();
+        var baseAudioSegments = new List<string>();
 
         int segIndex = 0;
-        foreach (var track in videoTracks)
+
+        // 1. Process Base Video Track (clips, transitions, filters, speeds)
+        if (baseVideoTrack != null)
         {
-            foreach (var clip in track.Clips.OrderBy(c => c.TimelineStart))
+            var orderedClips = baseVideoTrack.Clips.OrderBy(c => c.TimelineStart).ToList();
+            for (int i = 0; i < orderedClips.Count; i++)
             {
+                var clip = orderedClips[i];
                 if (string.IsNullOrEmpty(clip.AssetPath) || !File.Exists(clip.AssetPath))
                     continue;
 
@@ -56,99 +61,198 @@ public class FFmpegFilterGraphBuilder
                 double outSec = clip.OutPoint.TotalSeconds;
                 double speed = Math.Max(0.1, clip.Speed);
 
-                // Video filter chain for this clip
+                // Video filters
                 var vFilters = new List<string>();
                 vFilters.Add($"trim=start={inSec.ToString("F3", CultureInfo.InvariantCulture)}:end={outSec.ToString("F3", CultureInfo.InvariantCulture)}");
                 vFilters.Add($"setpts={((1.0 / speed)).ToString("F4", CultureInfo.InvariantCulture)}*(PTS-STARTPTS)");
                 vFilters.Add($"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2");
                 vFilters.Add($"fps={fps.ToString("F2", CultureInfo.InvariantCulture)}");
 
-                // Clip effects
+                // Apply clip effects
                 foreach (var effect in clip.Effects)
                 {
-                    ApplyEffectFilter(effect, vFilters, clip);
+                    ApplyVideoEffectFilter(effect, vFilters, clip);
                 }
 
                 filterGraph.Append($"[{inIdx}:v]{string.Join(",", vFilters)}[{vLabel}];\n");
-                videoSegmentLabels.Add($"[{vLabel}]");
+                baseVideoSegments.Add($"[{vLabel}]");
 
-                // Audio filter chain for this clip (if not muted)
+                // Audio filters
                 if (!clip.IsMuted)
                 {
                     var aFilters = new List<string>();
                     aFilters.Add($"atrim=start={inSec.ToString("F3", CultureInfo.InvariantCulture)}:end={outSec.ToString("F3", CultureInfo.InvariantCulture)}");
                     aFilters.Add("asetpts=PTS-STARTPTS");
 
-                    // Tempo/Speed for audio
-                    if (Math.Abs(speed - 1.0) > 0.01)
-                    {
-                        aFilters.Add($"atempo={speed.ToString("F2", CultureInfo.InvariantCulture)}");
-                    }
+                    // Multi-stage atempo for speeds beyond 0.5 - 2.0 range
+                    ApplyAudioTempoFilters(speed, aFilters);
 
                     if (Math.Abs(clip.Volume - 1.0) > 0.01)
                     {
                         aFilters.Add($"volume={clip.Volume.ToString("F2", CultureInfo.InvariantCulture)}");
                     }
 
+                    // Apply audio effects (fades)
+                    foreach (var effect in clip.Effects)
+                    {
+                        ApplyAudioEffectFilter(effect, aFilters, clip);
+                    }
+
                     filterGraph.Append($"[{inIdx}:a]{string.Join(",", aFilters)}[{aLabel}];\n");
-                    audioSegmentLabels.Add($"[{aLabel}]");
+                    baseAudioSegments.Add($"[{aLabel}]");
                 }
 
                 segIndex++;
             }
         }
 
-        string finalVideoOut = "v_out";
-        string finalAudioOut = "a_out";
+        string currentBaseVideoOut = "v_base_out";
 
-        // Concat video segments
-        if (videoSegmentLabels.Count > 1)
+        // Connect base video segments with transitions (xfade) or concat
+        if (baseVideoSegments.Count > 1)
         {
-            filterGraph.Append($"{string.Join("", videoSegmentLabels)}concat=n={videoSegmentLabels.Count}:v=1:a=0[v_concat];\n");
-            finalVideoOut = "v_concat";
+            var orderedClips = baseVideoTrack!.Clips.OrderBy(c => c.TimelineStart).ToList();
+            bool hasXfade = orderedClips.Any(c => c.TransitionIn != null && c.TransitionIn.Type != TransitionType.None);
+
+            if (hasXfade)
+            {
+                // Chain xfade transitions between clips
+                string currentXfadeInput = baseVideoSegments[0].Trim('[', ']');
+                double runningOffset = orderedClips[0].TimelineDuration.TotalSeconds;
+
+                for (int i = 1; i < baseVideoSegments.Count; i++)
+                {
+                    var nextSeg = baseVideoSegments[i].Trim('[', ']');
+                    string xfadeOut = $"v_xfade_{i}";
+                    var trans = orderedClips[i].TransitionIn ?? new Transition { Type = TransitionType.CrossFade, Duration = TimeSpan.FromSeconds(1) };
+                    double transDur = Math.Min(trans.Duration.TotalSeconds, orderedClips[i].TimelineDuration.TotalSeconds * 0.5);
+                    double offset = Math.Max(0.1, runningOffset - transDur);
+
+                    string transName = trans.ToFFmpegXfadeTransition();
+                    filterGraph.Append($"[{currentXfadeInput}][{nextSeg}]xfade=transition={transName}:duration={transDur.ToString("F2", CultureInfo.InvariantCulture)}:offset={offset.ToString("F2", CultureInfo.InvariantCulture)}[{xfadeOut}];\n");
+
+                    currentXfadeInput = xfadeOut;
+                    runningOffset = offset + orderedClips[i].TimelineDuration.TotalSeconds;
+                }
+                currentBaseVideoOut = currentXfadeInput;
+            }
+            else
+            {
+                filterGraph.Append($"{string.Join("", baseVideoSegments)}concat=n={baseVideoSegments.Count}:v=1:a=0[v_concat];\n");
+                currentBaseVideoOut = "v_concat";
+            }
         }
-        else if (videoSegmentLabels.Count == 1)
+        else if (baseVideoSegments.Count == 1)
         {
-            finalVideoOut = videoSegmentLabels[0].Trim('[', ']');
+            currentBaseVideoOut = baseVideoSegments[0].Trim('[', ']');
         }
         else
         {
-            // Empty project fallback: black screen
             filterGraph.Append($"color=c=black:s={width}x{height}:r={fps}:d=5[v_empty];\n");
-            finalVideoOut = "v_empty";
+            currentBaseVideoOut = "v_empty";
         }
 
-        // Apply text overlays over the concatenated video
-        if (project.Overlays.Count > 0)
+        // 2. Process Multi-Track Overlays & Picture-in-Picture (PiP)
+        string overlayCompOut = currentBaseVideoOut;
+        int overlayIdx = 0;
+        foreach (var ovTrack in overlayTracks)
         {
-            string currentOverlayInput = finalVideoOut;
-            for (int i = 0; i < project.Overlays.Count; i++)
+            foreach (var clip in ovTrack.Clips.OrderBy(c => c.TimelineStart))
             {
-                var overlay = project.Overlays[i];
-                string nextOverlayOut = $"v_overlay_{i}";
-                int posX = (int)(overlay.PositionX * width);
-                int posY = (int)(overlay.PositionY * height);
-                double tStart = overlay.StartTime.TotalSeconds;
-                double tEnd = (overlay.StartTime + overlay.Duration).TotalSeconds;
+                if (string.IsNullOrEmpty(clip.AssetPath) || !File.Exists(clip.AssetPath)) continue;
+                int ovInput = GetInputIndex(clip.AssetPath);
 
-                var safeText = EscapeDrawText(overlay.Text);
-                var drawTextFilter = $"drawtext=text='{safeText}':fontsize={overlay.FontSize}:fontcolor={overlay.ColorHex.Replace("#", "0x")}:x={posX}:y={posY}:enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                string ovPrepared = $"v_ov_prep_{overlayIdx}";
+                string nextComp = $"v_comp_{overlayIdx}";
 
-                filterGraph.Append($"[{currentOverlayInput}]{drawTextFilter}[{nextOverlayOut}];\n");
-                currentOverlayInput = nextOverlayOut;
+                double scale = Math.Clamp(clip.Scale, 0.05, 1.0);
+                int ovW = (int)(width * scale);
+                int ovH = (int)(height * scale);
+                int posX = (int)(clip.PositionX * (width - ovW));
+                int posY = (int)(clip.PositionY * (height - ovH));
+
+                double tStart = clip.TimelineStart.TotalSeconds;
+                double tEnd = clip.TimelineEnd.TotalSeconds;
+
+                var ovFilters = new List<string>();
+                ovFilters.Add($"scale={ovW}:{ovH}:force_original_aspect_ratio=decrease");
+                if (clip.Opacity < 0.99)
+                {
+                    ovFilters.Add($"format=rgba,colorchannelmixer=aa={clip.Opacity.ToString("F2", CultureInfo.InvariantCulture)}");
+                }
+
+                filterGraph.Append($"[{ovInput}:v]{string.Join(",", ovFilters)}[{ovPrepared}];\n");
+                filterGraph.Append($"[{overlayCompOut}][{ovPrepared}]overlay={posX}:{posY}:enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'[{nextComp}];\n");
+
+                overlayCompOut = nextComp;
+                overlayIdx++;
             }
-            finalVideoOut = currentOverlayInput;
         }
 
-        // Concat & Mix Audio
-        var musicAudioLabels = new List<string>();
+        // 3. Process Text Overlays (Title Cards & Lower Thirds)
+        string textCompOut = overlayCompOut;
+        for (int i = 0; i < project.Overlays.Count; i++)
+        {
+            var overlay = project.Overlays[i];
+            string nextTextOut = $"v_txt_{i}";
+            int posX = (int)(overlay.PositionX * width);
+            int posY = (int)(overlay.PositionY * height);
+            double tStart = overlay.StartTime.TotalSeconds;
+            double tEnd = (overlay.StartTime + overlay.Duration).TotalSeconds;
+
+            var safeText = EscapeDrawText(overlay.Text);
+            var color = overlay.ColorHex.Replace("#", "0x");
+            var drawText = $"drawtext=text='{safeText}':fontsize={overlay.FontSize}:fontcolor={color}:x={posX}:y={posY}:enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+
+            filterGraph.Append($"[{textCompOut}]{drawText}[{nextTextOut}];\n");
+            textCompOut = nextTextOut;
+        }
+
+        // 4. Process Captions / Subtitles Track
+        string captionCompOut = textCompOut;
+        if (project.Captions.Count > 0)
+        {
+            int capIdx = 0;
+            foreach (var cap in project.Captions.OrderBy(c => c.StartTime))
+            {
+                string nextCapOut = $"v_cap_{capIdx}";
+                double tStart = cap.StartTime.TotalSeconds;
+                double tEnd = cap.EndTime.TotalSeconds;
+                var safeCap = EscapeDrawText(cap.Text);
+
+                // Position captions cleanly centered at bottom with dark background box
+                var drawCap = $"drawtext=text='{safeCap}':fontsize={height / 30}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8:x=(w-text_w)/2:y=h-(text_h*2.5):enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+
+                filterGraph.Append($"[{captionCompOut}]{drawCap}[{nextCapOut}];\n");
+                captionCompOut = nextCapOut;
+                capIdx++;
+            }
+        }
+
+        string finalVideoOut = captionCompOut;
+
+        // 5. Audio Mixing (Video Clips Audio + Music Tracks)
+        var allAudioLabels = new List<string>();
+
+        if (baseAudioSegments.Count > 1)
+        {
+            filterGraph.Append($"{string.Join("", baseAudioSegments)}concat=n={baseAudioSegments.Count}:v=0:a=1[a_base_concat];\n");
+            allAudioLabels.Add("[a_base_concat]");
+        }
+        else if (baseAudioSegments.Count == 1)
+        {
+            allAudioLabels.Add(baseAudioSegments[0]);
+        }
+
+        // Music / Voiceover tracks
+        int musicSegIndex = 0;
         foreach (var aTrack in audioTracks)
         {
             foreach (var clip in aTrack.Clips.OrderBy(c => c.TimelineStart))
             {
                 if (string.IsNullOrEmpty(clip.AssetPath) || !File.Exists(clip.AssetPath)) continue;
                 int aInIdx = GetInputIndex(clip.AssetPath);
-                string mLabel = $"m_seg_{segIndex++}";
+                string mLabel = $"a_music_{musicSegIndex++}";
 
                 double inSec = clip.InPoint.TotalSeconds;
                 double outSec = clip.OutPoint.TotalSeconds;
@@ -166,25 +270,17 @@ public class FFmpegFilterGraphBuilder
                     aFilters.Add($"volume={clip.Volume.ToString("F2", CultureInfo.InvariantCulture)}");
                 }
 
+                foreach (var effect in clip.Effects)
+                {
+                    ApplyAudioEffectFilter(effect, aFilters, clip);
+                }
+
                 filterGraph.Append($"[{aInIdx}:a]{string.Join(",", aFilters)}[{mLabel}];\n");
-                musicAudioLabels.Add($"[{mLabel}]");
+                allAudioLabels.Add($"[{mLabel}]");
             }
         }
 
-        // Combine video audio & music audio
-        var allAudioLabels = new List<string>();
-        if (audioSegmentLabels.Count > 1)
-        {
-            filterGraph.Append($"{string.Join("", audioSegmentLabels)}concat=n={audioSegmentLabels.Count}:v=0:a=1[a_video_concat];\n");
-            allAudioLabels.Add("[a_video_concat]");
-        }
-        else if (audioSegmentLabels.Count == 1)
-        {
-            allAudioLabels.Add(audioSegmentLabels[0]);
-        }
-
-        allAudioLabels.AddRange(musicAudioLabels);
-
+        string finalAudioOut;
         if (allAudioLabels.Count > 1)
         {
             filterGraph.Append($"{string.Join("", allAudioLabels)}amix=inputs={allAudioLabels.Count}:duration=first:dropout_transition=2[a_mixed];\n");
@@ -196,7 +292,6 @@ public class FFmpegFilterGraphBuilder
         }
         else
         {
-            // Silent audio fallback
             filterGraph.Append("anullsrc=r=48000:cl=stereo:d=5[a_silent];\n");
             finalAudioOut = "a_silent";
         }
@@ -226,7 +321,7 @@ public class FFmpegFilterGraphBuilder
         };
     }
 
-    private static void ApplyEffectFilter(ClipEffect effect, List<string> vFilters, Clip clip)
+    private static void ApplyVideoEffectFilter(ClipEffect effect, List<string> vFilters, Clip clip)
     {
         switch (effect.Type)
         {
@@ -245,9 +340,22 @@ public class FFmpegFilterGraphBuilder
             case EffectType.BlackAndWhite:
                 vFilters.Add("hue=s=0");
                 break;
+            case EffectType.Sepia:
+                vFilters.Add("colorchannelmixer=.393:.769:.189:0:.349:.686:.168:0:.272:.534:.131");
+                break;
+            case EffectType.Invert:
+                vFilters.Add("negate");
+                break;
             case EffectType.Blur:
                 var radius = effect.Parameters.GetValueOrDefault("radius", 5.0);
                 vFilters.Add($"boxblur={radius:F0}:1");
+                break;
+            case EffectType.Sharpen:
+                vFilters.Add("unsharp=5:5:1.0:5:5:0.0");
+                break;
+            case EffectType.Vignette:
+                var angle = effect.Parameters.GetValueOrDefault("angle", 0.5);
+                vFilters.Add($"vignette={angle.ToString("F2", CultureInfo.InvariantCulture)}");
                 break;
             case EffectType.FadeIn:
                 var inDuration = effect.Parameters.GetValueOrDefault("duration", 1.0);
@@ -259,6 +367,49 @@ public class FFmpegFilterGraphBuilder
                 var outStart = Math.Max(0, clipDur - outDuration);
                 vFilters.Add($"fade=t=out:st={outStart.ToString("F2", CultureInfo.InvariantCulture)}:d={outDuration.ToString("F2", CultureInfo.InvariantCulture)}");
                 break;
+            case EffectType.Hue:
+                var hueDegrees = effect.Parameters.GetValueOrDefault("degrees", 0.0);
+                vFilters.Add($"hue=h={hueDegrees.ToString("F1", CultureInfo.InvariantCulture)}");
+                break;
+        }
+    }
+
+    private static void ApplyAudioEffectFilter(ClipEffect effect, List<string> aFilters, Clip clip)
+    {
+        switch (effect.Type)
+        {
+            case EffectType.AudioFadeIn:
+                var inDuration = effect.Parameters.GetValueOrDefault("duration", 1.0);
+                aFilters.Add($"afade=t=in:st=0:d={inDuration.ToString("F2", CultureInfo.InvariantCulture)}");
+                break;
+            case EffectType.AudioFadeOut:
+                var outDuration = effect.Parameters.GetValueOrDefault("duration", 1.0);
+                var clipDur = clip.TimelineDuration.TotalSeconds;
+                var outStart = Math.Max(0, clipDur - outDuration);
+                aFilters.Add($"afade=t=out:st={outStart.ToString("F2", CultureInfo.InvariantCulture)}:d={outDuration.ToString("F2", CultureInfo.InvariantCulture)}");
+                break;
+        }
+    }
+
+    private static void ApplyAudioTempoFilters(double speed, List<string> aFilters)
+    {
+        if (Math.Abs(speed - 1.0) < 0.01) return;
+
+        // FFmpeg's atempo filter must be between 0.5 and 2.0. Multiple atempo filters can be chained.
+        double remaining = speed;
+        while (remaining > 2.0)
+        {
+            aFilters.Add("atempo=2.0");
+            remaining /= 2.0;
+        }
+        while (remaining < 0.5)
+        {
+            aFilters.Add("atempo=0.5");
+            remaining /= 0.5;
+        }
+        if (Math.Abs(remaining - 1.0) > 0.01)
+        {
+            aFilters.Add($"atempo={remaining.ToString("F2", CultureInfo.InvariantCulture)}");
         }
     }
 

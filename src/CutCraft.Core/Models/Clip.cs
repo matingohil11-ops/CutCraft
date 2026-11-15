@@ -57,6 +57,11 @@ public class Clip
 
     public double Opacity { get; set; } = 1.0;
 
+    // PiP / Overlay positioning
+    public double PositionX { get; set; } = 0.0; // 0.0 to 1.0 normalized or 0 for full screen
+    public double PositionY { get; set; } = 0.0;
+    public double Scale { get; set; } = 1.0; // 1.0 = full scale, 0.25 = quarter screen (PiP)
+
     public List<ClipEffect> Effects { get; set; } = new();
 
     public Transition? TransitionIn { get; set; }
@@ -78,6 +83,9 @@ public class Clip
             Volume = this.Volume,
             IsMuted = this.IsMuted,
             Opacity = this.Opacity,
+            PositionX = this.PositionX,
+            PositionY = this.PositionY,
+            Scale = this.Scale,
             Effects = this.Effects.Select(e => new ClipEffect(e.Type, e.Parameters)).ToList(),
             TransitionIn = this.TransitionIn != null ? new Transition { Type = this.TransitionIn.Type, Duration = this.TransitionIn.Duration } : null,
             TransitionOut = this.TransitionOut != null ? new Transition { Type = this.TransitionOut.Type, Duration = this.TransitionOut.Duration } : null

@@ -4,8 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CutCraft.Wpf.ViewModels"
+        xmlns:models="clr-namespace:CutCraft.Core.Models;assembly=CutCraft.Core"
         mc:Ignorable="d"
-        Title="CutCraft - C# Video Editor" Height="800" Width="1280"
+        Title="CutCraft - C# Video Editor" Height="820" Width="1300"
         Background="{StaticResource BackgroundDark}"
         AutomationProperties.Name="CutCraft Video Editor Main Window">
 
@@ -23,14 +24,16 @@
         <KeyBinding Key="Delete" Command="{Binding DeleteSelectedClipCommand}" />
         <KeyBinding Key="Left" Command="{Binding StepBackwardCommand}" />
         <KeyBinding Key="Right" Command="{Binding StepForwardCommand}" />
+        <KeyBinding Key="Left" Modifiers="Alt" Command="{Binding SelectPreviousClipCommand}" />
+        <KeyBinding Key="Right" Modifiers="Alt" Command="{Binding SelectNextClipCommand}" />
     </Window.InputBindings>
 
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- Top Menu & Ribbon -->
-            <RowDefinition Height="*" />    <!-- Workspace (Library + Preview) -->
+            <RowDefinition Height="*" />    <!-- Workspace (Library / Captions + Preview) -->
             <RowDefinition Height="5" />    <!-- Splitter -->
-            <RowDefinition Height="320" />  <!-- Timeline Editor -->
+            <RowDefinition Height="330" />  <!-- Timeline Editor -->
             <RowDefinition Height="Auto" /> <!-- Accessible Status Bar -->
         </Grid.RowDefinitions>
 
@@ -54,6 +57,20 @@
                         <MenuItem Header="Set _Out Point" InputGestureText="O" Command="{Binding TrimEndAtPlayheadCommand}" />
                         <MenuItem Header="_Delete Clip" InputGestureText="Del" Command="{Binding DeleteSelectedClipCommand}" />
                     </MenuItem>
+                    <MenuItem Header="_Speed">
+                        <MenuItem Header="0.25x Slow Motion" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble025}" />
+                        <MenuItem Header="0.5x Slow Motion" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble05}" />
+                        <MenuItem Header="1.0x Normal Speed" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble10}" />
+                        <MenuItem Header="1.5x Fast Motion" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble15}" />
+                        <MenuItem Header="2.0x Double Speed" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble20}" />
+                    </MenuItem>
+                    <MenuItem Header="_Audio">
+                        <MenuItem Header="_Detach Audio to Track" Command="{Binding DetachAudioCommand}" />
+                    </MenuItem>
+                    <MenuItem Header="_Captions">
+                        <MenuItem Header="_Import .SRT Subtitles..." />
+                        <MenuItem Header="_Export .SRT Subtitles..." />
+                    </MenuItem>
                 </Menu>
 
                 <!-- Quick Action Buttons -->
@@ -74,49 +91,76 @@
             </DockPanel>
         </Border>
 
-        <!-- Center Workspace: Left = Media Library, Right = Video Preview -->
+        <!-- Center Workspace: Left = Media Library & Captions Tabs, Right = Video Preview -->
         <Grid Grid.Row="1" Margin="8">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="320" MinWidth="240" />
+                <ColumnDefinition Width="340" MinWidth="260" />
                 <ColumnDefinition Width="5" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Media Library Panel -->
-            <Border Grid.Column="0" Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource BorderDark}" BorderThickness="1" CornerRadius="4">
-                <Grid Margin="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+            <!-- Tabs: Media Library / Captions -->
+            <TabControl Grid.Column="0" Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource BorderDark}">
+                <!-- Tab 1: Media Library -->
+                <TabItem Header="Media Library" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Media Library" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,8" />
-
-                    <!-- Media Assets List -->
-                    <ListBox Grid.Row="1" ItemsSource="{Binding CurrentProject.MediaLibrary}" SelectedItem="{Binding SelectedAsset}"
-                             Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
-                             AutomationProperties.Name="Media Library Assets List">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="4">
-                                    <Border Width="36" Height="36" Background="#333337" CornerRadius="3" Margin="0,0,8,0">
-                                        <TextBlock Text="▶" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentColor}" />
-                                    </Border>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextLight}" />
-                                        <TextBlock Text="{Binding Duration, StringFormat='Duration: {0:mm\\:ss}'}" FontSize="11" Foreground="#AAAAAA" />
+                        <ListBox Grid.Row="0" ItemsSource="{Binding CurrentProject.MediaLibrary}" SelectedItem="{Binding SelectedAsset}"
+                                 Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                 AutomationProperties.Name="Media Library Assets List">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="4">
+                                        <Border Width="36" Height="36" Background="#333337" CornerRadius="3" Margin="0,0,8,0">
+                                            <TextBlock Text="▶" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{StaticResource AccentColor}" />
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Medium" Foreground="{StaticResource TextLight}" />
+                                            <TextBlock Text="{Binding Duration, StringFormat='Duration: {0:mm\\:ss}'}" FontSize="11" Foreground="#AAAAAA" />
+                                        </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
 
-                    <Button Grid.Row="2" Content="+ Import Media Files..." Margin="0,8,0,0" Padding="10,6"
-                            AutomationProperties.Name="Import video, audio, or image files"
-                            Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
-                </Grid>
-            </Border>
+                        <Button Grid.Row="1" Content="+ Import Media Files..." Margin="0,8,0,0" Padding="10,6"
+                                AutomationProperties.Name="Import video, audio, or image files"
+                                Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
+                    </Grid>
+                </TabItem>
+
+                <!-- Tab 2: Captions & Subtitles -->
+                <TabItem Header="Captions (.SRT)" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
+                    <Grid Margin="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <ListBox Grid.Row="0" ItemsSource="{Binding CurrentProject.Captions}" SelectedItem="{Binding SelectedCaption}"
+                                 Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                 AutomationProperties.Name="Project Captions List">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="4">
+                                        <TextBlock Text="{Binding Text}" FontWeight="Medium" Foreground="{StaticResource TextLight}" />
+                                        <TextBlock Text="{Binding StartTime, StringFormat='At: {0:mm\\:ss\\.fff}'}" FontSize="11" Foreground="#00BCF9" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <Button Grid.Row="1" Content="+ Add Caption At Playhead" Margin="0,8,0,0" Padding="10,6"
+                                Command="{Binding AddCaptionCommand}" CommandParameter="New Caption"
+                                AutomationProperties.Name="Add new subtitle caption at current playhead"
+                                Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}" />
+                    </Grid>
+                </TabItem>
+            </TabControl>
 
             <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" Background="Transparent" />
 
@@ -179,7 +223,7 @@
                 <DockPanel Grid.Row="0" Margin="10,6" LastChildFill="False">
                     <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                         <TextBlock Text="Timeline Tracks" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" VerticalAlignment="Center" />
-                        <TextBlock Text=" • [S] Split | [I] Set In | [O] Set Out | [Del] Delete | [Arrows] Scrub" FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <TextBlock Text=" • [S] Split | [I] Set In | [O] Set Out | [Alt+Arrows] Prev/Next Clip" FontSize="12" Foreground="#888888" VerticalAlignment="Center" Margin="8,0,0,0" />
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

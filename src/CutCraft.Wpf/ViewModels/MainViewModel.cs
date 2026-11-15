@@ -6,6 +6,7 @@ using CutCraft.Core.Accessibility;
 using CutCraft.Core.Commands;
 using CutCraft.Core.Models;
 using CutCraft.Core.Serialization;
+using CutCraft.Core.Subtitles;
 using CutCraft.Core.Timeline;
 using CutCraft.Media.Analysis;
 using CutCraft.Media.Export;
@@ -17,6 +18,7 @@ public partial class MainViewModel : ObservableObject
     private readonly TimelineEngine _timelineEngine = new();
     private readonly IMediaAnalyzer _mediaAnalyzer = new FFprobeMediaAnalyzer();
     private readonly IMediaExporter _mediaExporter = new FFmpegProcessExporter();
+    private readonly IAudioCueService _audioCues = new SystemAudioCueService();
 
     [ObservableProperty]
     private Project _currentProject = Project.CreateDefault("My First Video");
@@ -35,6 +37,9 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private MediaAsset? _selectedAsset;
+
+    [ObservableProperty]
+    private CaptionItem? _selectedCaption;
 
     [ObservableProperty]
     private bool _isPlaying;
@@ -115,7 +120,6 @@ public partial class MainViewModel : ObservableObject
             var asset = await _mediaAnalyzer.AnalyzeAssetAsync(filePath);
             CurrentProject.MediaLibrary.Add(asset);
 
-            // Automatically place on the appropriate track if track is empty or append to it
             var targetTrack = asset.Type == AssetType.Audio
                 ? CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Audio)
                 : CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Video);
@@ -169,6 +173,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new SplitClipCommand(SelectedTrack, clipToSplit, PlayheadPosition);
         CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
         SelectedClip = SelectedTrack.Clips.FirstOrDefault(c => c.TimelineStart == PlayheadPosition);
     }
 
@@ -192,6 +197,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new TrimClipCommand(SelectedClip, TrimEdge.Start, newInPoint);
         CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
     }
 
     [RelayCommand]
@@ -214,6 +220,7 @@ public partial class MainViewModel : ObservableObject
 
         var cmd = new TrimClipCommand(SelectedClip, TrimEdge.End, newOutPoint);
         CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
     }
 
     [RelayCommand]
@@ -231,11 +238,98 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public void ChangeSpeed(double multiplier)
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected to change speed.");
+            return;
+        }
+
+        var cmd = new ChangeClipSpeedCommand(SelectedClip, multiplier);
+        CommandManager.Execute(cmd);
+    }
+
+    [RelayCommand]
+    public void ApplyTransition(TransitionType type)
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected to set transition.");
+            return;
+        }
+
+        var transition = type != TransitionType.None ? new Transition { Type = type, Duration = TimeSpan.FromSeconds(1.0) } : null;
+        var cmd = new SetClipTransitionCommand(SelectedClip, isTransitionIn: true, transition);
+        CommandManager.Execute(cmd);
+    }
+
+    [RelayCommand]
+    public void DetachAudio()
+    {
+        if (SelectedClip == null)
+        {
+            Notifier.Announce("No clip selected to detach audio.");
+            return;
+        }
+
+        var cmd = new DetachAudioCommand(CurrentProject, SelectedClip);
+        CommandManager.Execute(cmd);
+    }
+
+    [RelayCommand]
+    public void AddCaption(string text)
+    {
+        int index = CurrentProject.Captions.Count + 1;
+        var start = PlayheadPosition;
+        var end = start + TimeSpan.FromSeconds(3);
+        var caption = new CaptionItem(index, start, end, text);
+
+        CurrentProject.Captions.Add(caption);
+        SelectedCaption = caption;
+        Notifier.Announce($"Added caption: '{text}' at {start:mm\\:ss}");
+    }
+
+    [RelayCommand]
+    public void ImportSrtFile(string filePath)
+    {
+        try
+        {
+            var items = SrtSubtitleService.LoadSrtFile(filePath);
+            CurrentProject.Captions.Clear();
+            foreach (var item in items)
+            {
+                CurrentProject.Captions.Add(item);
+            }
+            Notifier.Announce($"Imported {items.Count} subtitles from {Path.GetFileName(filePath)}");
+        }
+        catch (Exception ex)
+        {
+            Notifier.Announce($"Failed to import SRT: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    public void ExportSrtFile(string filePath)
+    {
+        try
+        {
+            SrtSubtitleService.SaveSrtFile(CurrentProject.Captions, filePath);
+            Notifier.Announce($"Exported subtitles to {Path.GetFileName(filePath)}");
+        }
+        catch (Exception ex)
+        {
+            Notifier.Announce($"Failed to export SRT: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
     public void Undo()
     {
         if (CommandManager.CanUndo)
         {
             CommandManager.Undo();
+            _audioCues.PlayUndoCue();
         }
         else
         {
@@ -249,6 +343,7 @@ public partial class MainViewModel : ObservableObject
         if (CommandManager.CanRedo)
         {
             CommandManager.Redo();
+            _audioCues.PlayRedoCue();
         }
         else
         {
@@ -271,10 +366,35 @@ public partial class MainViewModel : ObservableObject
         SeekTo(target < TimeSpan.Zero ? TimeSpan.Zero : target);
     }
 
+    [RelayCommand]
+    public void SelectNextClip()
+    {
+        if (SelectedTrack == null || SelectedTrack.Clips.Count == 0) return;
+
+        int currentIndex = SelectedClip != null ? SelectedTrack.Clips.IndexOf(SelectedClip) : -1;
+        int nextIndex = Math.Min(SelectedTrack.Clips.Count - 1, currentIndex + 1);
+        SelectedClip = SelectedTrack.Clips[nextIndex];
+        SeekTo(SelectedClip.TimelineStart);
+        Notifier.AnnounceClipSelected(SelectedClip, nextIndex, SelectedTrack.Clips.Count);
+    }
+
+    [RelayCommand]
+    public void SelectPreviousClip()
+    {
+        if (SelectedTrack == null || SelectedTrack.Clips.Count == 0) return;
+
+        int currentIndex = SelectedClip != null ? SelectedTrack.Clips.IndexOf(SelectedClip) : 1;
+        int prevIndex = Math.Max(0, currentIndex - 1);
+        SelectedClip = SelectedTrack.Clips[prevIndex];
+        SeekTo(SelectedClip.TimelineStart);
+        Notifier.AnnounceClipSelected(SelectedClip, prevIndex, SelectedTrack.Clips.Count);
+    }
+
     public void SeekTo(TimeSpan targetTime)
     {
         PlayheadPosition = targetTime;
         CurrentTimecode = TimelineEngine.FormatTimecode(PlayheadPosition, CurrentProject.FrameRate);
+        _audioCues.PlaySeekCue();
     }
 
     [RelayCommand]

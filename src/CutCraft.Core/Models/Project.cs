@@ -24,6 +24,7 @@ public class Project
     public ObservableCollection<MediaAsset> MediaLibrary { get; set; } = new();
     public ObservableCollection<Track> Tracks { get; set; } = new();
     public ObservableCollection<TextOverlay> Overlays { get; set; } = new();
+    public ObservableCollection<CaptionItem> Captions { get; set; } = new();
 
     [JsonIgnore]
     public TimeSpan Duration
@@ -32,7 +33,9 @@ public class Project
         {
             var maxTrack = Tracks.Count > 0 ? Tracks.Max(t => t.Duration) : TimeSpan.Zero;
             var maxOverlay = Overlays.Count > 0 ? Overlays.Max(o => o.StartTime + o.Duration) : TimeSpan.Zero;
-            return maxTrack > maxOverlay ? maxTrack : maxOverlay;
+            var maxCaption = Captions.Count > 0 ? Captions.Max(c => c.EndTime) : TimeSpan.Zero;
+            var maxVal = maxTrack > maxOverlay ? maxTrack : maxOverlay;
+            return maxVal > maxCaption ? maxVal : maxCaption;
         }
     }
 
