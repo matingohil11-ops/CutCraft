@@ -12,6 +12,10 @@ public partial class MainWindow : Window
 {
     private MainViewModel Vm => (MainViewModel)DataContext;
     private string? _currentMediaSource;
+    private bool _isMediaElementPlaying;
+    private bool _mediaOpened;
+    private TimeSpan? _pendingSeekPosition;
+    private DateTime _lastSeekTime = DateTime.MinValue;
 
     public MainWindow()
     {
@@ -25,21 +29,42 @@ public partial class MainWindow : Window
 
         VideoPreviewElement.MediaOpened += (s, args) =>
         {
-            if (Vm.IsPlaying)
+            _mediaOpened = true;
+            if (VideoPreviewElement.NaturalDuration.HasTimeSpan)
             {
-                VideoPreviewElement.Position = Vm.ActiveVideoPosition;
-                VideoPreviewElement.Play();
+                var naturalDuration = VideoPreviewElement.NaturalDuration.TimeSpan;
+                var naturalWidth = VideoPreviewElement.NaturalVideoWidth;
+                var naturalHeight = VideoPreviewElement.NaturalVideoHeight;
+                Vm.SyncImportedMediaDimensions(naturalDuration, naturalWidth, naturalHeight);
             }
-            else
+
+            var targetPos = _pendingSeekPosition ?? Vm.ActiveVideoPosition;
+            try
             {
-                VideoPreviewElement.Position = Vm.ActiveVideoPosition;
-                VideoPreviewElement.Pause();
+                VideoPreviewElement.Position = targetPos;
+                if (Vm.IsPlaying)
+                {
+                    VideoPreviewElement.Play();
+                    _isMediaElementPlaying = true;
+                }
+                else
+                {
+                    VideoPreviewElement.Pause();
+                    _isMediaElementPlaying = false;
+                }
             }
+            catch { }
+            _pendingSeekPosition = null;
         };
 
         VideoPreviewElement.MediaFailed += (s, args) =>
         {
-            Vm.Notifier.Announce($"Media preview notice: {args.ErrorException?.Message}");
+            _mediaOpened = false;
+            _isMediaElementPlaying = false;
+            var msg = args.ErrorException?.Message ?? "Unsupported video format or codec";
+            Vm.Notifier.Announce($"Media preview notice: {msg}");
+            Vm.PreviewOverlayMessage = $"Playback notice: {msg}";
+            Vm.HasActiveVideo = false;
         };
     }
 
@@ -56,35 +81,83 @@ public partial class MainWindow : Window
                 }
                 catch { }
                 _currentMediaSource = null;
+                _mediaOpened = false;
+                _isMediaElementPlaying = false;
             }
             return;
+        }
+
+        // Apply clip volume and mute state to preview player
+        var activeClip = Vm.CurrentProject.Tracks
+            .Where(t => t.Type == TrackType.Video && !t.IsMuted)
+            .SelectMany(t => t.Clips)
+            .FirstOrDefault(c => Vm.PlayheadPosition >= c.TimelineStart && Vm.PlayheadPosition < c.TimelineEnd);
+
+        if (activeClip != null)
+        {
+            VideoPreviewElement.IsMuted = activeClip.IsMuted;
+            VideoPreviewElement.Volume = activeClip.IsMuted ? 0.0 : Math.Clamp(activeClip.Volume * Vm.CurrentProject.MasterVolume, 0.0, 1.0);
         }
 
         if (_currentMediaSource != sourcePath)
         {
             _currentMediaSource = sourcePath;
+            _mediaOpened = false;
+            _isMediaElementPlaying = false;
+            _pendingSeekPosition = position;
             try
             {
                 VideoPreviewElement.Source = new Uri(sourcePath, UriKind.Absolute);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Vm.PreviewOverlayMessage = $"Failed to open video: {ex.Message}";
+                Vm.HasActiveVideo = false;
+                return;
+            }
+            return;
+        }
+
+        if (!_mediaOpened)
+        {
+            _pendingSeekPosition = position;
+            return;
         }
 
         try
         {
             if (isPlaying)
             {
-                var drift = (VideoPreviewElement.Position - position).Duration();
-                if (drift > TimeSpan.FromMilliseconds(250))
+                if (!_isMediaElementPlaying)
                 {
                     VideoPreviewElement.Position = position;
+                    VideoPreviewElement.Play();
+                    _isMediaElementPlaying = true;
+                    _lastSeekTime = DateTime.UtcNow;
                 }
-                VideoPreviewElement.Play();
+                else
+                {
+                    // Avoid micro-seeking every 20ms which kills video rendering.
+                    // Only resync if significant drift (>1.2s) occurs after user jump.
+                    if (DateTime.UtcNow - _lastSeekTime > TimeSpan.FromMilliseconds(500))
+                    {
+                        var drift = (VideoPreviewElement.Position - position).Duration();
+                        if (drift > TimeSpan.FromMilliseconds(1200))
+                        {
+                            VideoPreviewElement.Position = position;
+                            _lastSeekTime = DateTime.UtcNow;
+                        }
+                    }
+                }
             }
             else
             {
+                if (_isMediaElementPlaying)
+                {
+                    VideoPreviewElement.Pause();
+                    _isMediaElementPlaying = false;
+                }
                 VideoPreviewElement.Position = position;
-                VideoPreviewElement.Pause();
             }
         }
         catch { }
@@ -209,13 +282,89 @@ public partial class MainWindow : Window
         }
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
-        base.OnKeyDown(e);
-        if (e.Key == Key.M && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+        // Allow text fields to receive Space and typing keystrokes without interception
+        if (e.OriginalSource is System.Windows.Controls.Primitives.TextBoxBase ||
+            Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase)
         {
-            AddMusicAtPlayhead_Click(this, new RoutedEventArgs());
-            e.Handled = true;
+            base.OnPreviewKeyDown(e);
+            return;
         }
+
+        switch (e.Key)
+        {
+            case Key.Space:
+                Vm.TogglePlayPause();
+                e.Handled = true;
+                return;
+
+            case Key.K when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.TogglePlayPause();
+                e.Handled = true;
+                return;
+
+            case Key.J when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.StepBackward();
+                e.Handled = true;
+                return;
+
+            case Key.L when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.StepForward();
+                e.Handled = true;
+                return;
+
+            case Key.Left when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.StepBackward();
+                e.Handled = true;
+                return;
+
+            case Key.Right when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.StepForward();
+                e.Handled = true;
+                return;
+
+            case Key.Home when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.JumpToStart();
+                e.Handled = true;
+                return;
+
+            case Key.End when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.JumpToEnd();
+                e.Handled = true;
+                return;
+
+            case Key.S when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.SplitAtPlayhead();
+                e.Handled = true;
+                return;
+
+            case Key.I when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.TrimStartAtPlayhead();
+                e.Handled = true;
+                return;
+
+            case Key.O when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.TrimEndAtPlayhead();
+                e.Handled = true;
+                return;
+
+            case Key.Delete when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.DeleteSelectedClip();
+                e.Handled = true;
+                return;
+
+            case Key.M when (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control:
+                AddMusicAtPlayhead_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+                return;
+
+            case Key.M when Keyboard.Modifiers == ModifierKeys.None:
+                Vm.AddMarkerAtPlayhead();
+                e.Handled = true;
+                return;
+        }
+
+        base.OnPreviewKeyDown(e);
     }
 }

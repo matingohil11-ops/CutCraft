@@ -166,7 +166,14 @@ public partial class MainViewModel : ObservableObject
 
     public void StartPlayback()
     {
-        if (CurrentProject.Duration > TimeSpan.Zero && PlayheadPosition >= CurrentProject.Duration)
+        if (CurrentProject.Duration <= TimeSpan.Zero)
+        {
+            Notifier.Announce("Timeline is empty. Import media to begin.");
+            PreviewOverlayMessage = "CutCraft Video Preview Screen (Import media to begin)";
+            return;
+        }
+
+        if (PlayheadPosition >= CurrentProject.Duration)
         {
             PlayheadPosition = TimeSpan.Zero;
             OnPropertyChanged(nameof(PlayheadSeconds));
@@ -335,6 +342,9 @@ public partial class MainViewModel : ObservableObject
 
             if (targetTrack != null)
             {
+                if (IsPlaying) PausePlayback();
+
+                var clipDuration = asset.Duration > TimeSpan.Zero ? asset.Duration : TimeSpan.FromSeconds(5);
                 var newClip = new Clip
                 {
                     Name = asset.Name,
@@ -342,14 +352,19 @@ public partial class MainViewModel : ObservableObject
                     AssetPath = asset.FilePath,
                     Type = asset.Type,
                     InPoint = TimeSpan.Zero,
-                    OutPoint = asset.Duration > TimeSpan.Zero ? asset.Duration : TimeSpan.FromSeconds(5),
+                    OutPoint = clipDuration,
                     TimelineStart = targetTrack.Duration
                 };
 
                 CommandManager.Execute(new AddClipCommand(targetTrack, newClip));
                 SelectedClip = newClip;
+
+                // Move playhead to start of new clip so preview updates immediately
+                SeekTo(newClip.TimelineStart);
             }
 
+            OnPropertyChanged(nameof(CurrentProject));
+            OnPropertyChanged(nameof(PlayheadSeconds));
             UpdatePlaybackState(IsPlaying);
             Notifier.Announce($"Imported {asset.Name} ({asset.Duration.TotalSeconds:F1}s)");
         }
@@ -357,6 +372,37 @@ public partial class MainViewModel : ObservableObject
         {
             Notifier.Announce($"Failed to import media: {ex.Message}");
         }
+    }
+
+    public void SyncImportedMediaDimensions(TimeSpan naturalDuration, int naturalWidth, int naturalHeight)
+    {
+        if (string.IsNullOrEmpty(ActiveVideoPath)) return;
+
+        var asset = CurrentProject.MediaLibrary.FirstOrDefault(a => a.FilePath == ActiveVideoPath);
+        if (asset != null)
+        {
+            if (naturalDuration > TimeSpan.Zero && (asset.Duration <= TimeSpan.FromSeconds(5) || asset.Duration == TimeSpan.Zero))
+            {
+                asset.Duration = naturalDuration;
+            }
+            if (naturalWidth > 0) asset.Width = naturalWidth;
+            if (naturalHeight > 0) asset.Height = naturalHeight;
+        }
+
+        foreach (var track in CurrentProject.Tracks)
+        {
+            foreach (var clip in track.Clips.Where(c => c.AssetPath == ActiveVideoPath))
+            {
+                if (naturalDuration > TimeSpan.Zero && (clip.OutPoint <= TimeSpan.FromSeconds(5) || clip.OutPoint == TimeSpan.Zero))
+                {
+                    clip.OutPoint = naturalDuration;
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(CurrentProject));
+        OnPropertyChanged(nameof(PlayheadSeconds));
+        UpdatePlaybackState(IsPlaying);
     }
 
     [RelayCommand]

@@ -114,4 +114,29 @@ public class TimelineNavigationTests
         commandManager.Execute(removeCmd);
         Assert.Empty(project.Markers);
     }
+
+    [Fact]
+    public void Timeline_EmptyProject_HasZeroDuration()
+    {
+        var project = Project.CreateDefault("Empty Test");
+        Assert.Equal(TimeSpan.Zero, project.Duration);
+    }
+
+    [Fact]
+    public async Task MediaAnalyzer_Fallback_HandlesNonExistentAndSampleFilesGracefully()
+    {
+        var analyzer = new CutCraft.Media.Analysis.FFprobeMediaAnalyzer("nonexistent_ffprobe_exe");
+        var tempFile = Path.GetTempFileName() + ".mp4";
+        try
+        {
+            await File.WriteAllBytesAsync(tempFile, new byte[100]);
+            var asset = await analyzer.AnalyzeAssetAsync(tempFile);
+            Assert.NotNull(asset);
+            Assert.Equal(AssetType.Video, asset.Type);
+        }
+        finally
+        {
+            if (File.Exists(tempFile)) File.Delete(tempFile);
+        }
+    }
 }

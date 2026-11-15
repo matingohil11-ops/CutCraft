@@ -1,10 +1,10 @@
 {
   "version": "0.0",
-  "name": "CutCraft v0.0 (Release Update)",
-  "releaseDate": "2026-11-15T16:25:00Z",
-  "releaseNotes": "CutCraft v0.0 Release:\n- Video Preview Playback Engine with seamless timeline scrubbing and frame stepping\n- Interactive Play/Pause transport controls with Space, K, J, L shortcuts\n- Real-time Subtitle & Caption overlay preview\n- Built-in Auto-Updater engine (Version 0.0) with update checks & install\n- Accessibility screen reader live announcements and audio cues",
+  "name": "CutCraft v0.0 (Release Update - Video Player & Shortcut Fix)",
+  "releaseDate": "2026-11-15T17:40:00Z",
+  "releaseNotes": "CutCraft v0.0 Hotfix Update:\n- Fixed Spacebar and keyboard shortcut interception across all focused UI elements (PreviewKeyDown)\n- Fixed video player freezing issue by eliminating rapid-seek loop and smooth 1x clock synchronization\n- Fixed imported video playback initialization and auto-seeking to clip start\n- Added pure C# MP4/WAV metadata header fallback reader for environments without ffprobe\n- Added live natural dimension and duration synchronization from MediaOpened\n- Updated standalone win-x64 published application package",
   "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v0.0/CutCraft-v0.0-win-x64.zip",
   "mandatory": false,
-  "fileSizeBytes": 90316242,
-  "sha256Checksum": "D8D1D3E672D3A8C5FC49B13CA4AF5BC0AB26B605135A5A7BB23FD2D66B281E81"
+  "fileSizeBytes": 905285,
+  "sha256Checksum": "C49AAD4A6C80881D6CCD8692D0F1D0184AC7B39BC442017256E66FBE8FA5E2D8"
 }
