@@ -75,10 +75,59 @@ public partial class MainViewModel : ObservableObject
     private Visibility _activeCaptionVisibility = Visibility.Collapsed;
 
     [ObservableProperty]
-    private string _appVersionDisplay = "v0.1.1";
+    private string _appVersionDisplay = $"v{UpdateManager.CurrentVersionString}";
 
     [ObservableProperty]
     private string _updateButtonText = "🔄 Check Updates";
+
+    [ObservableProperty]
+    private string _updateButtonAccessibleText = "Check for CutCraft updates";
+
+    // User persistent settings
+    public UserSettings Settings { get; } = UserSettings.Load();
+
+    [ObservableProperty]
+    private bool _isAutoCheckUpdatesEnabled = true;
+
+    [ObservableProperty]
+    private bool _isAutoCheckUpdatesDisabled = false;
+
+    // Accessible Update Notification UI State
+    [ObservableProperty]
+    private bool _isUpdateNotificationVisible = false;
+
+    [ObservableProperty]
+    private Visibility _updateNotificationVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private Visibility _updateActionButtonsVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private Visibility _upToDateOrErrorDismissVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private Visibility _downloadProgressVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private string _updateNotificationTitle = "";
+
+    [ObservableProperty]
+    private string _updateNotificationMessage = "";
+
+    [ObservableProperty]
+    private string _installedVersionDisplay = UpdateManager.CurrentVersionString;
+
+    [ObservableProperty]
+    private string _latestVersionDisplay = UpdateManager.CurrentVersionString;
+
+    [ObservableProperty]
+    private bool _isDownloadingUpdate = false;
+
+    [ObservableProperty]
+    private double _downloadProgressPercent = 0.0;
+
+    [ObservableProperty]
+    private string _downloadProgressText = "";
 
     [ObservableProperty]
     private double _playbackSpeed = 1.0;
@@ -116,6 +165,10 @@ public partial class MainViewModel : ObservableObject
         CommandManager.AccessibilityNotification += (s, msg) => AccessibilityStatus = msg;
 
         SelectedTrack = CurrentProject.Tracks.FirstOrDefault();
+
+        // Initialize startup update checking setting from persistent user preferences
+        IsAutoCheckUpdatesEnabled = Settings.AutoCheckUpdatesOnStartup;
+        IsAutoCheckUpdatesDisabled = !Settings.AutoCheckUpdatesOnStartup;
 
         _playbackTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
@@ -257,47 +310,276 @@ public partial class MainViewModel : ObservableObject
     private UpdateInfo? _pendingUpdate;
 
     [RelayCommand]
-    public async Task CheckForUpdatesAsync()
+    public void SetAutoCheckUpdates(string mode)
     {
+        bool enable = string.Equals(mode, "Enabled", StringComparison.OrdinalIgnoreCase);
+        Settings.AutoCheckUpdatesOnStartup = enable;
+        Settings.Save();
+        IsAutoCheckUpdatesEnabled = enable;
+        IsAutoCheckUpdatesDisabled = !enable;
+
+        var stateStr = enable ? "enabled" : "disabled";
+        Notifier.Announce($"Automatic update check on startup is now {stateStr}.");
+    }
+
+    /// <summary>
+    /// Checks for updates on startup if enabled. If no update or offline, does not interrupt the user.
+    /// If update available (and not skipped), displays notification with options.
+    /// </summary>
+    public async Task CheckStartupUpdatesAsync()
+    {
+        if (!Settings.AutoCheckUpdatesOnStartup)
+        {
+            return;
+        }
+
         try
         {
-            if (_pendingUpdate != null)
-            {
-                UpdateButtonText = "⏳ Updating...";
-                Notifier.Announce($"Downloading CutCraft {_pendingUpdate.Version} update...");
-                var updateZip = await _updateManager.DownloadUpdateAsync(_pendingUpdate, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "updates"));
-                Notifier.Announce("Update downloaded. Applying update and restarting CutCraft...");
-                _updateManager.ApplyUpdate(updateZip, restartApp: true);
-                return;
-            }
-
-            UpdateButtonText = "🔄 Checking...";
-            Notifier.Announce("Checking for CutCraft updates...");
             var result = await _updateManager.CheckForUpdatesAsync();
             if (result.HasUpdate && result.Update != null)
             {
+                // Verify user hasn't chosen to skip this version
+                if (!string.IsNullOrWhiteSpace(Settings.SkippedVersion) &&
+                    string.Equals(Settings.SkippedVersion, result.LatestVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
                 _pendingUpdate = result.Update;
+                InstalledVersionDisplay = result.CurrentVersion;
+                LatestVersionDisplay = result.LatestVersion;
+                UpdateNotificationTitle = $"CutCraft Update Available: Version {result.LatestVersion}";
+                UpdateNotificationMessage = string.IsNullOrWhiteSpace(result.Update.ReleaseNotes)
+                    ? result.Message
+                    : $"{result.Message}\n\n{result.Update.ReleaseNotes}";
+
+                UpdateActionButtonsVisibility = Visibility.Visible;
+                UpToDateOrErrorDismissVisibility = Visibility.Collapsed;
+                DownloadProgressVisibility = Visibility.Collapsed;
+                IsUpdateNotificationVisible = true;
+                UpdateNotificationVisibility = Visibility.Visible;
+
                 UpdateButtonText = $"⬆ Install {result.LatestVersion}";
-                Notifier.Announce($"Update available: CutCraft {result.LatestVersion}! Click Install to apply update.");
+                UpdateButtonAccessibleText = $"Update available: version {result.LatestVersion}. Click to review options.";
+
+                Notifier.Announce($"Update notification: CutCraft version {result.LatestVersion} is available. Currently installed is {result.CurrentVersion}. Press Alt+D to Download and Install, Alt+R to Remind Me Later, or Alt+S to Skip This Version.");
+            }
+        }
+        catch
+        {
+            // Do not interrupt user on startup if check fails
+        }
+    }
+
+    /// <summary>
+    /// Manual check for updates (invoked from Settings menu, Help menu, status bar, or About).
+    /// </summary>
+    [RelayCommand]
+    public async Task ManualCheckForUpdatesAsync()
+    {
+        try
+        {
+            UpdateButtonText = "🔄 Checking...";
+            UpdateButtonAccessibleText = "Checking for CutCraft updates...";
+            Notifier.Announce("Checking for CutCraft updates...");
+
+            var result = await _updateManager.CheckForUpdatesAsync();
+            InstalledVersionDisplay = result.CurrentVersion;
+            LatestVersionDisplay = result.LatestVersion;
+
+            if (!result.IsSuccess)
+            {
+                _pendingUpdate = null;
+                UpdateNotificationTitle = "Update Check Failed";
+                UpdateNotificationMessage = result.Message;
+                UpdateActionButtonsVisibility = Visibility.Collapsed;
+                UpToDateOrErrorDismissVisibility = Visibility.Visible;
+                DownloadProgressVisibility = Visibility.Collapsed;
+                IsUpdateNotificationVisible = true;
+                UpdateNotificationVisibility = Visibility.Visible;
+
+                UpdateButtonText = "🔄 Check Updates";
+                UpdateButtonAccessibleText = "Update check failed. Click to try again.";
+                Notifier.Announce($"Update check failed: {result.Message}");
+                return;
+            }
+
+            if (result.HasUpdate && result.Update != null)
+            {
+                _pendingUpdate = result.Update;
+                UpdateNotificationTitle = $"CutCraft Update Available: Version {result.LatestVersion}";
+                UpdateNotificationMessage = string.IsNullOrWhiteSpace(result.Update.ReleaseNotes)
+                    ? result.Message
+                    : $"{result.Message}\n\n{result.Update.ReleaseNotes}";
+
+                UpdateActionButtonsVisibility = Visibility.Visible;
+                UpToDateOrErrorDismissVisibility = Visibility.Collapsed;
+                DownloadProgressVisibility = Visibility.Collapsed;
+                IsUpdateNotificationVisible = true;
+                UpdateNotificationVisibility = Visibility.Visible;
+
+                UpdateButtonText = $"⬆ Install {result.LatestVersion}";
+                UpdateButtonAccessibleText = $"Update available: version {result.LatestVersion}. Click to review options.";
+                Notifier.Announce($"Update available: CutCraft {result.LatestVersion}! Currently installed is {result.CurrentVersion}. Options: Download and Install, Remind Me Later, Skip This Version.");
             }
             else
             {
                 _pendingUpdate = null;
+                UpdateNotificationTitle = "CutCraft is Up to Date";
+                UpdateNotificationMessage = "You are using the latest version.";
+                UpdateActionButtonsVisibility = Visibility.Collapsed;
+                UpToDateOrErrorDismissVisibility = Visibility.Visible;
+                DownloadProgressVisibility = Visibility.Collapsed;
+                IsUpdateNotificationVisible = true;
+                UpdateNotificationVisibility = Visibility.Visible;
+
                 UpdateButtonText = $"✔ {AppVersionDisplay} Up to date";
-                Notifier.Announce(result.Message);
+                UpdateButtonAccessibleText = $"CutCraft is up to date (version {AppVersionDisplay}).";
+                Notifier.Announce($"CutCraft is up to date. You are using the latest version (v{result.CurrentVersion}).");
             }
         }
         catch (Exception ex)
         {
             UpdateButtonText = "🔄 Check Updates";
-            Notifier.Announce($"Update check failed: {ex.Message}");
+            UpdateButtonAccessibleText = "Update check failed. Click to try again.";
+            UpdateNotificationTitle = "Update Check Error";
+            UpdateNotificationMessage = $"Unexpected error checking updates: {ex.Message}";
+            UpdateActionButtonsVisibility = Visibility.Collapsed;
+            UpToDateOrErrorDismissVisibility = Visibility.Visible;
+            DownloadProgressVisibility = Visibility.Collapsed;
+            IsUpdateNotificationVisible = true;
+            UpdateNotificationVisibility = Visibility.Visible;
+            Notifier.Announce($"Update check error: {ex.Message}");
         }
+    }
+
+    [RelayCommand]
+    public async Task CheckForUpdatesAsync()
+    {
+        await ManualCheckForUpdatesAsync();
+    }
+
+    [RelayCommand]
+    public async Task DownloadAndInstallUpdateAsync()
+    {
+        if (_pendingUpdate == null)
+            return;
+
+        try
+        {
+            IsDownloadingUpdate = true;
+            DownloadProgressVisibility = Visibility.Visible;
+            UpdateActionButtonsVisibility = Visibility.Collapsed;
+            UpToDateOrErrorDismissVisibility = Visibility.Collapsed;
+            DownloadProgressPercent = 0.0;
+            DownloadProgressText = "Preparing download...";
+            UpdateButtonText = "⏳ Updating...";
+            UpdateButtonAccessibleText = "Downloading update in progress...";
+
+            Notifier.Announce($"Downloading CutCraft {_pendingUpdate.Version} update...");
+
+            int lastAnnouncedMilestone = 0;
+            var progress = new Progress<double>(value =>
+            {
+                var percent = Math.Clamp(value * 100.0, 0.0, 100.0);
+                DownloadProgressPercent = percent;
+                DownloadProgressText = $"Downloading update: {percent:F0}%...";
+
+                // Announce milestones politely to screen reader (e.g. at 25%, 50%, 75%, 100%)
+                int currentMilestone = (int)(percent / 25) * 25;
+                if (currentMilestone > lastAnnouncedMilestone && currentMilestone <= 100)
+                {
+                    lastAnnouncedMilestone = currentMilestone;
+                    Notifier.Announce($"Download progress: {currentMilestone}%");
+                }
+            });
+
+            var destinationDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "updates");
+            var updateZip = await _updateManager.DownloadUpdateAsync(_pendingUpdate, destinationDir, progress);
+
+            DownloadProgressPercent = 100.0;
+            DownloadProgressText = "Download complete. Applying update and restarting CutCraft...";
+            Notifier.Announce("Update downloaded. Applying update and restarting CutCraft...");
+
+            // Apply update passing current process PID for safe file unlocking
+            var applied = _updateManager.ApplyUpdate(updateZip, restartApp: true, Process.GetCurrentProcess().Id);
+            if (applied)
+            {
+                // Gracefully shut down WPF app so files can be updated
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    Application.Current.Shutdown();
+                });
+            }
+            else
+            {
+                throw new InvalidOperationException("Failed to launch updater process.");
+            }
+        }
+        catch (Exception ex)
+        {
+            IsDownloadingUpdate = false;
+            DownloadProgressVisibility = Visibility.Collapsed;
+            UpdateActionButtonsVisibility = Visibility.Collapsed;
+            UpToDateOrErrorDismissVisibility = Visibility.Visible;
+            UpdateNotificationTitle = "Update Installation Failed";
+            UpdateNotificationMessage = $"Error: {ex.Message}";
+            UpdateButtonText = "🔄 Check Updates";
+            UpdateButtonAccessibleText = "Update failed. Click to try again.";
+            Notifier.Announce($"Update failed: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    public void RemindMeLater()
+    {
+        IsUpdateNotificationVisible = false;
+        UpdateNotificationVisibility = Visibility.Collapsed;
+        Notifier.Announce("Update reminder postponed. CutCraft will remind you on next startup.");
+    }
+
+    [RelayCommand]
+    public void SkipThisVersion()
+    {
+        if (_pendingUpdate != null)
+        {
+            var skipped = _pendingUpdate.Version;
+            Settings.SkippedVersion = skipped;
+            Settings.Save();
+            _pendingUpdate = null;
+            IsUpdateNotificationVisible = false;
+            UpdateNotificationVisibility = Visibility.Collapsed;
+            UpdateButtonText = $"✔ {AppVersionDisplay} Up to date";
+            UpdateButtonAccessibleText = $"CutCraft is up to date (version {AppVersionDisplay}). Version {skipped} skipped.";
+            Notifier.Announce($"CutCraft version {skipped} skipped. You will not be notified again for this version.");
+        }
+        else
+        {
+            IsUpdateNotificationVisible = false;
+            UpdateNotificationVisibility = Visibility.Collapsed;
+        }
+    }
+
+    [RelayCommand]
+    public void CloseUpdateNotification()
+    {
+        IsUpdateNotificationVisible = false;
+        UpdateNotificationVisibility = Visibility.Collapsed;
     }
 
     [RelayCommand]
     public void ShowAbout()
     {
-        Notifier.Announce($"CutCraft {AppVersionDisplay} - Accessible C# Desktop Video Editor");
+        InstalledVersionDisplay = UpdateManager.CurrentVersionString;
+        LatestVersionDisplay = UpdateManager.CurrentVersionString;
+        UpdateNotificationTitle = $"About CutCraft {AppVersionDisplay}";
+        UpdateNotificationMessage = $"CutCraft - Accessible C# Desktop Video Editor\nInstalled Version: {UpdateManager.CurrentVersionString}\nAutomatic update check on startup: {(Settings.AutoCheckUpdatesOnStartup ? "Enabled" : "Disabled")}";
+        UpdateActionButtonsVisibility = Visibility.Collapsed;
+        UpToDateOrErrorDismissVisibility = Visibility.Visible;
+        DownloadProgressVisibility = Visibility.Collapsed;
+        IsUpdateNotificationVisible = true;
+        UpdateNotificationVisibility = Visibility.Visible;
+        Notifier.Announce($"CutCraft {AppVersionDisplay} - Accessible C# Desktop Video Editor. Installed Version {UpdateManager.CurrentVersionString}.");
     }
 
     [RelayCommand]

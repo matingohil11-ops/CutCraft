@@ -66,6 +66,9 @@ public partial class MainWindow : Window
             Vm.PreviewOverlayMessage = $"Playback notice: {msg}";
             Vm.HasActiveVideo = false;
         };
+
+        // Check for updates on startup if enabled in settings
+        _ = Vm.CheckStartupUpdatesAsync();
     }
 
     private void OnPreviewStateChanged(string? sourcePath, TimeSpan position, bool isPlaying)
@@ -289,6 +292,13 @@ public partial class MainWindow : Window
             Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase)
         {
             base.OnPreviewKeyDown(e);
+            return;
+        }
+
+        if (e.Key == Key.Escape && Vm.IsUpdateNotificationVisible)
+        {
+            Vm.CloseUpdateNotification();
+            e.Handled = true;
             return;
         }
 

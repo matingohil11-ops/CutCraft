@@ -4,5 +4,6 @@
     <UseSharedCompilation>false</UseSharedCompilation>
     <BuildInParallel>false</BuildInParallel>
     <MaxCpuCount>1</MaxCpuCount>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 </Project>

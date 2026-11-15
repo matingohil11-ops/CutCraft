@@ -15,6 +15,9 @@ public class UpdateInfo
 public class UpdateCheckResult
 {
     public bool HasUpdate { get; set; }
+    public bool IsSuccess { get; set; } = true;
+    public bool IsNetworkError { get; set; }
+    public string? ErrorMessage { get; set; }
     public UpdateInfo? Update { get; set; }
     public string Message { get; set; } = "";
     public string CurrentVersion { get; set; } = "0.0";
