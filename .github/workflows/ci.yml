@@ -1,0 +1,49 @@
+name: CutCraft CI / CD
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build & Test (.NET 10 on Windows)
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 10 SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore CutCraft.sln
+
+    - name: Build Solution (Release)
+      run: dotnet build CutCraft.sln -c Release --no-restore
+
+    - name: Run Unit Tests
+      run: dotnet test CutCraft.sln -c Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+
+    - name: Publish CutCraft WPF (Self-Contained)
+      run: |
+        dotnet publish src/CutCraft.Wpf/CutCraft.Wpf.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+
+    - name: Compress Release Package
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        Compress-Archive -Path publish/win-x64/* -DestinationPath CutCraft-Windows-x64.zip
+
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: CutCraft-Windows-x64.zip
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
