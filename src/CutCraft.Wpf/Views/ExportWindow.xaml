@@ -1,0 +1,61 @@
+<Window x:Class="CutCraft.Wpf.Views.ExportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Export Video - CutCraft" Height="420" Width="550"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="{StaticResource BackgroundDark}"
+        AutomationProperties.Name="Export Video Dialog Window">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="Export Project as MP4" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextLight}" Margin="0,0,0,16" />
+
+        <!-- Form Fields -->
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="Resolution &amp; Quality Preset" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,4" />
+            <ComboBox x:Name="PresetComboBox" SelectedIndex="0" Background="#2D2D30" Foreground="{StaticResource TextLight}" Margin="0,0,0,16"
+                      AutomationProperties.Name="Export quality preset selector">
+                <ComboBoxItem Content="1080p Full HD (1920x1080) - Recommended for YouTube &amp; Desktop" Tag="1080p" />
+                <ComboBoxItem Content="4K Ultra HD (3840x2160) - Highest Quality" Tag="4k" />
+                <ComboBoxItem Content="720p HD (1280x720) - Fast Export &amp; Web Sharing" Tag="720p" />
+                <ComboBoxItem Content="1080x1920 (9:16 Vertical) - YouTube Shorts &amp; Reels" Tag="vertical" />
+            </ComboBox>
+
+            <TextBlock Text="Output Destination File" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,4" />
+            <DockPanel Margin="0,0,0,16">
+                <Button x:Name="BrowseButton" Content="Browse..." DockPanel.Dock="Right" Padding="12,4" Margin="8,0,0,0"
+                        Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                        Click="BrowseButton_Click" AutomationProperties.Name="Browse output file destination" />
+                <TextBox x:Name="OutputPathTextBox" Background="#2D2D30" Foreground="{StaticResource TextLight}"
+                         BorderBrush="{StaticResource BorderDark}" Padding="6"
+                         AutomationProperties.Name="Output destination file path" />
+            </DockPanel>
+
+            <TextBlock Text="Format: MP4 (H.264 Video + AAC Stereo Audio)" Foreground="#AAAAAA" FontSize="12" Margin="0,0,0,16" />
+
+            <!-- Progress Bar -->
+            <TextBlock x:Name="StatusTextBlock" Text="Ready to export." Foreground="#00BCF9" FontSize="13" FontWeight="Medium" Margin="0,0,0,6"
+                       AutomationProperties.LiveSetting="Polite" />
+            <ProgressBar x:Name="ExportProgressBar" Height="14" Minimum="0" Maximum="100" Value="0" Background="#2D2D30" Foreground="{StaticResource AccentColor}" />
+        </StackPanel>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="CancelButton" Content="Close" Width="90" Padding="6" Margin="0,0,8,0"
+                    Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                    Click="CancelButton_Click" AutomationProperties.Name="Close export window" />
+            <Button x:Name="StartExportButton" Content="Start Export" Width="120" Padding="6"
+                    Background="#2E8B57" Foreground="{StaticResource TextLight}" FontWeight="Bold"
+                    Click="StartExportButton_Click" AutomationProperties.Name="Start video export process" />
+        </StackPanel>
+    </Grid>
+</Window>

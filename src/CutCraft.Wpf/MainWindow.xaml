@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:CutCraft.Wpf.ViewModels"
         xmlns:models="clr-namespace:CutCraft.Core.Models;assembly=CutCraft.Core"
+        xmlns:views="clr-namespace:CutCraft.Wpf.Views"
         mc:Ignorable="d"
         Title="CutCraft - C# Video Editor" Height="820" Width="1300"
         Background="{StaticResource BackgroundDark}"
@@ -31,7 +32,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- Top Menu & Ribbon -->
-            <RowDefinition Height="*" />    <!-- Workspace (Library / Captions + Preview) -->
+            <RowDefinition Height="*" />    <!-- Workspace (Library / Captions / Inspector + Preview) -->
             <RowDefinition Height="5" />    <!-- Splitter -->
             <RowDefinition Height="330" />  <!-- Timeline Editor -->
             <RowDefinition Height="Auto" /> <!-- Accessible Status Bar -->
@@ -43,10 +44,10 @@
                 <Menu DockPanel.Dock="Left" Background="Transparent" Foreground="{StaticResource TextLight}" FontSize="13">
                     <MenuItem Header="_File">
                         <MenuItem Header="_New Project" InputGestureText="Ctrl+N" Command="{Binding NewProjectCommand}" />
-                        <MenuItem Header="_Open Project..." InputGestureText="Ctrl+O" />
-                        <MenuItem Header="_Save Project" InputGestureText="Ctrl+S" />
+                        <MenuItem Header="_Open Project..." InputGestureText="Ctrl+O" Click="OpenProject_Click" />
+                        <MenuItem Header="_Save Project" InputGestureText="Ctrl+S" Click="SaveProject_Click" />
                         <Separator />
-                        <MenuItem Header="_Export MP4..." InputGestureText="Ctrl+E" />
+                        <MenuItem Header="_Export MP4..." InputGestureText="Ctrl+E" Click="Export_Click" />
                     </MenuItem>
                     <MenuItem Header="_Edit">
                         <MenuItem Header="_Undo" InputGestureText="Ctrl+Z" Command="{Binding UndoCommand}" />
@@ -68,8 +69,8 @@
                         <MenuItem Header="_Detach Audio to Track" Command="{Binding DetachAudioCommand}" />
                     </MenuItem>
                     <MenuItem Header="_Captions">
-                        <MenuItem Header="_Import .SRT Subtitles..." />
-                        <MenuItem Header="_Export .SRT Subtitles..." />
+                        <MenuItem Header="_Import .SRT Subtitles..." Click="ImportSrt_Click" />
+                        <MenuItem Header="_Export .SRT Subtitles..." Click="ExportSrt_Click" />
                     </MenuItem>
                 </Menu>
 
@@ -84,14 +85,14 @@
                     <Button Content="✂ Split (S)" Command="{Binding SplitAtPlayheadCommand}" Margin="8,0,4,0" Padding="12,4"
                             AutomationProperties.Name="Split clip at playhead position (Shortcut S)"
                             Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}" FontWeight="SemiBold" />
-                    <Button Content="▶ Export MP4" Margin="4,0" Padding="12,4"
+                    <Button Content="▶ Export MP4" Margin="4,0" Padding="12,4" Click="Export_Click"
                             AutomationProperties.Name="Export project as MP4 video file"
                             Background="#2E8B57" Foreground="{StaticResource TextLight}" FontWeight="SemiBold" />
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <!-- Center Workspace: Left = Media Library & Captions Tabs, Right = Video Preview -->
+        <!-- Center Workspace: Left = Tabs (Media Library, Captions, Clip Inspector), Right = Video Preview -->
         <Grid Grid.Row="1" Margin="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="340" MinWidth="260" />
@@ -99,7 +100,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Tabs: Media Library / Captions -->
+            <!-- Tabs -->
             <TabControl Grid.Column="0" Background="{StaticResource PanelBackground}" BorderBrush="{StaticResource BorderDark}">
                 <!-- Tab 1: Media Library -->
                 <TabItem Header="Media Library" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
@@ -128,7 +129,7 @@
                         </ListBox>
 
                         <Button Grid.Row="1" Content="+ Import Media Files..." Margin="0,8,0,0" Padding="10,6"
-                                AutomationProperties.Name="Import video, audio, or image files"
+                                Click="ImportMedia_Click" AutomationProperties.Name="Import video, audio, or image files"
                                 Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
                     </Grid>
                 </TabItem>
@@ -155,10 +156,15 @@
                         </ListBox>
 
                         <Button Grid.Row="1" Content="+ Add Caption At Playhead" Margin="0,8,0,0" Padding="10,6"
-                                Command="{Binding AddCaptionCommand}" CommandParameter="New Caption"
+                                Command="{Binding AddCaptionCommand}" CommandParameter="New Subtitle Text"
                                 AutomationProperties.Name="Add new subtitle caption at current playhead"
                                 Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}" />
                     </Grid>
+                </TabItem>
+
+                <!-- Tab 3: Clip Inspector & Properties -->
+                <TabItem Header="Clip Properties" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
+                    <views:ClipPropertiesPanel DataContext="{Binding}" />
                 </TabItem>
             </TabControl>
 
