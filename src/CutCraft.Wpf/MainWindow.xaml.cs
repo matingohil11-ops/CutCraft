@@ -227,13 +227,13 @@ public partial class MainWindow : Window
     {
         var ofd = new OpenFileDialog
         {
-            Filter = "SubRip Subtitles (*.srt)|*.srt|All files (*.*)|*.*",
+            Filter = "Subtitle Files (*.srt;*.vtt)|*.srt;*.vtt|SubRip Subtitles (*.srt)|*.srt|WebVTT (*.vtt)|*.vtt|All files (*.*)|*.*",
             Title = "Import Subtitles"
         };
 
         if (ofd.ShowDialog() == true)
         {
-            Vm.ImportSrtFile(ofd.FileName);
+            Vm.ImportSubtitlesFile(ofd.FileName);
         }
     }
 
@@ -241,7 +241,7 @@ public partial class MainWindow : Window
     {
         var sfd = new SaveFileDialog
         {
-            Filter = "SubRip Subtitles (*.srt)|*.srt|All files (*.*)|*.*",
+            Filter = "SubRip Subtitles (*.srt)|*.srt|WebVTT (*.vtt)|*.vtt|All files (*.*)|*.*",
             Title = "Export Subtitles",
             DefaultExt = ".srt",
             FileName = $"{Vm.CurrentProject.Name}_subtitles.srt"
@@ -249,7 +249,7 @@ public partial class MainWindow : Window
 
         if (sfd.ShowDialog() == true)
         {
-            Vm.ExportSrtFile(sfd.FileName);
+            Vm.ExportSubtitlesFile(sfd.FileName);
         }
     }
 

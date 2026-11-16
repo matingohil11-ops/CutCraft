@@ -88,8 +88,21 @@
                             <MenuItem Header="_Detach Audio to Track" Command="{Binding DetachAudioCommand}" />
                         </MenuItem>
                         <MenuItem Header="_Captions">
-                            <MenuItem Header="_Import .SRT Subtitles..." Click="ImportSrt_Click" />
-                            <MenuItem Header="_Export .SRT Subtitles..." Click="ExportSrt_Click" />
+                            <MenuItem Header="_Add Caption at Playhead" Command="{Binding AddCaptionCommand}" />
+                            <MenuItem Header="_Validate Subtitles" Command="{Binding ValidateSubtitlesCommand}" />
+                            <MenuItem Header="Shift Subtitles _Earlier (-0.5s)" Command="{Binding ShiftCaptionsEarlierCommand}" />
+                            <MenuItem Header="Shift Subtitles _Later (+0.5s)" Command="{Binding ShiftCaptionsLaterCommand}" />
+                            <Separator />
+                            <MenuItem Header="_Import Subtitles (.SRT / .VTT)..." Click="ImportSrt_Click" />
+                            <MenuItem Header="_Export Subtitles (.SRT / .VTT)..." Click="ExportSrt_Click" />
+                        </MenuItem>
+                        <MenuItem Header="_Titles">
+                            <MenuItem Header="Add _Lower Third Card" Command="{Binding AddLowerThirdPresetCommand}" />
+                            <MenuItem Header="Add _Cinematic Header Card" Command="{Binding AddCinematicHeaderPresetCommand}" />
+                            <MenuItem Header="Add _Bold Headline Banner" Command="{Binding AddBoldHeadlinePresetCommand}" />
+                            <MenuItem Header="Add _Minimalist Title" Command="{Binding AddMinimalistPresetCommand}" />
+                            <MenuItem Header="Add _Neon Cyber Glow" Command="{Binding AddNeonGlowPresetCommand}" />
+                            <MenuItem Header="Add _Vintage Retro Title" Command="{Binding AddVintageRetroPresetCommand}" />
                         </MenuItem>
                         <MenuItem Header="_Settings" AutomationProperties.Name="Settings Menu">
                             <MenuItem Header="_Automatically Check for Updates on Startup"
@@ -244,35 +257,256 @@
                     </Grid>
                 </TabItem>
 
-                <!-- Tab 2: Captions & Subtitles -->
-                <TabItem Header="Captions (.SRT)" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
-                    <Grid Margin="8">
+                <!-- Tab 2: Captions & Subtitles (.SRT / .VTT) -->
+                <TabItem Header="Captions (.SRT / .VTT)" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
+                    <Grid Margin="6">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <ListBox Grid.Row="0" ItemsSource="{Binding CurrentProject.Captions}" SelectedItem="{Binding SelectedCaption}"
+                        <!-- Caption Quick Actions Toolbar -->
+                        <WrapPanel Grid.Row="0" Margin="0,0,0,6">
+                            <Button Content="+ Add at Playhead" Command="{Binding AddCaptionCommand}" Padding="8,4" Margin="2"
+                                    Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Add new caption at playhead" />
+                            <Button Content="✂ Split" Command="{Binding SplitSelectedCaptionAtPlayheadCommand}" Padding="6,4" Margin="2"
+                                    Background="#333337" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Split selected caption at current playhead" />
+                            <Button Content="🔗 Merge Next" Command="{Binding MergeSelectedCaptionWithNextCommand}" Padding="6,4" Margin="2"
+                                    Background="#333337" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Merge selected caption with next caption" />
+                            <Button Content="⏪ -0.5s" Command="{Binding ShiftCaptionsEarlierCommand}" Padding="6,4" Margin="2"
+                                    Background="#333337" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Shift all captions earlier by 0.5s" />
+                            <Button Content="⏩ +0.5s" Command="{Binding ShiftCaptionsLaterCommand}" Padding="6,4" Margin="2"
+                                    Background="#333337" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Shift all captions later by 0.5s" />
+                            <Button Content="🔍 Validate" Command="{Binding ValidateSubtitlesCommand}" Padding="6,4" Margin="2"
+                                    Background="#2E8B57" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Validate subtitles timing and reading speed" />
+                            <Button Content="📂 Import" Click="ImportSrt_Click" Padding="6,4" Margin="2"
+                                    Background="#2D2D30" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Import subtitle file in SRT or VTT format" />
+                            <Button Content="💾 Export" Click="ExportSrt_Click" Padding="6,4" Margin="2"
+                                    Background="#2D2D30" Foreground="{StaticResource TextLight}"
+                                    AutomationProperties.Name="Export subtitle file in SRT or VTT format" />
+                        </WrapPanel>
+
+                        <!-- Captions List -->
+                        <ListBox Grid.Row="1" ItemsSource="{Binding CurrentProject.Captions}" SelectedItem="{Binding SelectedCaption}"
                                  Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
                                  AutomationProperties.Name="Project Captions List">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <StackPanel Margin="4">
-                                        <TextBlock Text="{Binding Text}" FontWeight="Medium" Foreground="{StaticResource TextLight}" />
-                                        <TextBlock Text="{Binding StartTime, StringFormat='At: {0:mm\\:ss\\.fff}'}" FontSize="11" Foreground="#00BCF9" />
-                                    </StackPanel>
+                                    <Border BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="32" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{Binding Index, StringFormat='#{0}'}"
+                                                       Foreground="#888888" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="11" />
+                                            <StackPanel Grid.Column="1" Margin="4,0">
+                                                <TextBlock Text="{Binding Text}" FontWeight="Medium" Foreground="{StaticResource TextLight}" TextWrapping="Wrap" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding StartTime, StringFormat='{}{0:mm\\:ss\\.fff}'}" FontSize="11" Foreground="#00BCF9" />
+                                                    <TextBlock Text=" ➔ " FontSize="11" Foreground="#666666" />
+                                                    <TextBlock Text="{Binding EndTime, StringFormat='{}{0:mm\\:ss\\.fff}'}" FontSize="11" Foreground="#00BCF9" />
+                                                    <TextBlock Text="{Binding Duration.TotalSeconds, StringFormat=' ({0:F1}s)'}" FontSize="11" Foreground="#888888" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="⚡ FAST" FontSize="9" Foreground="#FFA500" FontWeight="Bold"
+                                                           Visibility="{Binding HasReadingSpeedWarning, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                           ToolTip="Reading speed exceeds recommended 26 chars/sec" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
 
-                        <Button Grid.Row="1" Content="+ Add Caption At Playhead" Margin="0,8,0,0" Padding="10,6"
-                                Command="{Binding AddCaptionCommand}" CommandParameter="New Subtitle Text"
-                                AutomationProperties.Name="Add new subtitle caption at current playhead"
-                                Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}" />
+                        <!-- Selected Caption Editor -->
+                        <Border Grid.Row="2" Background="#252528" BorderBrush="{StaticResource BorderDark}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Caption Editor" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,6" />
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Speaker: " Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBox Grid.Column="1" Text="{Binding CaptionEditorSpeaker, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="4,2" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="2" Text="Style: " Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <ComboBox Grid.Column="3" SelectedItem="{Binding CaptionEditorStyle}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}">
+                                        <models:CaptionStylePreset>Default</models:CaptionStylePreset>
+                                        <models:CaptionStylePreset>YellowCinema</models:CaptionStylePreset>
+                                        <models:CaptionStylePreset>HighContrastWhite</models:CaptionStylePreset>
+                                        <models:CaptionStylePreset>BoxedDark</models:CaptionStylePreset>
+                                        <models:CaptionStylePreset>TopHeader</models:CaptionStylePreset>
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock Text="Subtitle Text:" Foreground="#AAAAAA" FontSize="11" Margin="0,2,0,2" />
+                                <TextBox Text="{Binding CaptionEditorText, UpdateSourceTrigger=PropertyChanged}"
+                                         Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                         AcceptsReturn="True" TextWrapping="Wrap" Height="48" Padding="4"
+                                         AutomationProperties.Name="Selected caption text editor" />
+                                <Grid Margin="0,6,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="Start (sec):" Foreground="#AAAAAA" FontSize="10" />
+                                        <TextBox Text="{Binding CaptionEditorStartSeconds, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="3,2" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="4,0">
+                                        <TextBlock Text="End (sec):" Foreground="#AAAAAA" FontSize="10" />
+                                        <TextBox Text="{Binding CaptionEditorEndSeconds, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="3,2" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="4,0,0,0">
+                                        <Button Content="Save" Command="{Binding CommitCaptionEditCommand}" Padding="10,4" Margin="0,0,4,0"
+                                                Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}" FontWeight="SemiBold"
+                                                AutomationProperties.Name="Save changes to selected caption" />
+                                        <Button Content="Delete" Command="{Binding RemoveSelectedCaptionCommand}" Padding="8,4"
+                                                Background="#C0392B" Foreground="{StaticResource TextLight}"
+                                                AutomationProperties.Name="Delete selected caption" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding SubtitleValidationSummary}" Margin="0,6,0,0"
+                                           Foreground="#00FF66" FontSize="11" TextWrapping="Wrap"
+                                           Visibility="{Binding SubtitleValidationSummary, Converter={StaticResource NullOrEmptyToVisibilityConverter}}" />
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </TabItem>
 
-                <!-- Tab 3: Clip Inspector & Properties -->
+                <!-- Tab 3: Titles & Overlays (Stylized Title Cards) -->
+                <TabItem Header="Titles &amp; Overlays" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
+                    <Grid Margin="6">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Presets Bar -->
+                        <Border Grid.Row="0" Background="#222225" BorderBrush="{StaticResource BorderDark}" BorderThickness="1" CornerRadius="3" Padding="6" Margin="0,0,0,6">
+                            <StackPanel>
+                                <TextBlock Text="Quick Title Presets (Add at Playhead):" FontSize="11" FontWeight="SemiBold" Foreground="#00BCF9" Margin="0,0,0,4" />
+                                <WrapPanel>
+                                    <Button Content="🎬 Lower Third" Command="{Binding AddLowerThirdPresetCommand}" Padding="6,3" Margin="2" Background="#1E293B" Foreground="#00BCF9" BorderBrush="#00BCF9" />
+                                    <Button Content="👑 Cinematic Title" Command="{Binding AddCinematicHeaderPresetCommand}" Padding="6,3" Margin="2" Background="#2B2117" Foreground="#F5E6C8" BorderBrush="#D4AF37" />
+                                    <Button Content="💥 Bold Headline" Command="{Binding AddBoldHeadlinePresetCommand}" Padding="6,3" Margin="2" Background="#0F172A" Foreground="#FFFFFF" BorderBrush="#FFCC00" />
+                                    <Button Content="✨ Minimalist" Command="{Binding AddMinimalistPresetCommand}" Padding="6,3" Margin="2" Background="#2D2D30" Foreground="#E2E8F0" />
+                                    <Button Content="⚡ Neon Glow" Command="{Binding AddNeonGlowPresetCommand}" Padding="6,3" Margin="2" Background="#050814" Foreground="#00F0FF" BorderBrush="#FF007F" />
+                                    <Button Content="📜 Vintage Retro" Command="{Binding AddVintageRetroPresetCommand}" Padding="6,3" Margin="2" Background="#2B1B17" Foreground="#FFE0B2" BorderBrush="#B8860B" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Overlays List -->
+                        <ListBox Grid.Row="1" ItemsSource="{Binding CurrentProject.Overlays}" SelectedItem="{Binding SelectedOverlay}"
+                                 Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                 AutomationProperties.Name="Project Text Overlays List">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border BorderBrush="#333333" BorderThickness="0,0,0,1" Padding="4">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Text}" FontWeight="Bold" Foreground="{StaticResource TextLight}" />
+                                                <TextBlock Text="{Binding SubtitleText}" FontSize="11" Foreground="#00BCF9"
+                                                           Visibility="{Binding SubtitleText, Converter={StaticResource NullOrEmptyToVisibilityConverter}}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding Style, StringFormat='[{0}] '}" FontSize="10" Foreground="#FFA500" />
+                                                    <TextBlock Text="{Binding Animation, StringFormat='Anim: {0} | '}" FontSize="10" Foreground="#888888" />
+                                                    <TextBlock Text="{Binding StartTime, StringFormat='At: {0:mm\\:ss\\.f}'}" FontSize="10" Foreground="#AAAAAA" />
+                                                    <TextBlock Text="{Binding Duration.TotalSeconds, StringFormat=' ({0:F1}s)'}" FontSize="10" Foreground="#888888" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="✦" Foreground="{StaticResource AccentColor}" FontSize="14" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Selected Overlay Inspector -->
+                        <Border Grid.Row="2" Background="#252528" BorderBrush="{StaticResource BorderDark}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Title Card Inspector" FontWeight="SemiBold" Foreground="{StaticResource TextLight}" Margin="0,0,0,4" />
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Title: " Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBox Grid.Column="1" Text="{Binding OverlayEditorText, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="4,2" Margin="0,0,8,0" />
+                                    <TextBlock Grid.Column="2" Text="Subtitle: " Foreground="#AAAAAA" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                    <TextBox Grid.Column="3" Text="{Binding OverlayEditorSubtitle, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="4,2" />
+                                </Grid>
+                                <Grid Margin="0,0,0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="Animation:" Foreground="#AAAAAA" FontSize="10" />
+                                        <ComboBox SelectedItem="{Binding OverlayEditorAnimation}" Background="#1E1E1E" Foreground="{StaticResource TextLight}">
+                                            <models:TextAnimationType>Fade</models:TextAnimationType>
+                                            <models:TextAnimationType>SlideUp</models:TextAnimationType>
+                                            <models:TextAnimationType>SlideLeft</models:TextAnimationType>
+                                            <models:TextAnimationType>ZoomIn</models:TextAnimationType>
+                                            <models:TextAnimationType>None</models:TextAnimationType>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="2,0">
+                                        <TextBlock Text="Font Size:" Foreground="#AAAAAA" FontSize="10" />
+                                        <TextBox Text="{Binding OverlayEditorFontSize, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="3,2" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                        <TextBlock Text="Duration (s):" Foreground="#AAAAAA" FontSize="10" />
+                                        <TextBox Text="{Binding OverlayEditorDurationSeconds, UpdateSourceTrigger=PropertyChanged}" Background="#1E1E1E" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" Padding="3,2" />
+                                    </StackPanel>
+                                </Grid>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                        <Button Content="Lower 3rd" Command="{Binding ApplyLowerThirdPresetCommand}" Padding="4,2" Margin="0,0,2,0" Background="#1E293B" Foreground="#00BCF9" FontSize="10" />
+                                        <Button Content="Cinema" Command="{Binding ApplyCinematicHeaderPresetCommand}" Padding="4,2" Margin="2,0" Background="#2B2117" Foreground="#F5E6C8" FontSize="10" />
+                                        <Button Content="Headline" Command="{Binding ApplyBoldHeadlinePresetCommand}" Padding="4,2" Margin="2,0" Background="#0F172A" Foreground="#FFFFFF" FontSize="10" />
+                                        <Button Content="Neon" Command="{Binding ApplyNeonGlowPresetCommand}" Padding="4,2" Margin="2,0" Background="#050814" Foreground="#00F0FF" FontSize="10" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button Content="Duplicate" Command="{Binding DuplicateSelectedOverlayCommand}" Padding="6,3" Margin="0,0,4,0" Background="#333337" Foreground="{StaticResource TextLight}" />
+                                        <Button Content="Save" Command="{Binding CommitOverlayEditCommand}" Padding="8,3" Margin="0,0,4,0" Background="{StaticResource AccentColor}" Foreground="{StaticResource TextLight}" FontWeight="SemiBold" />
+                                        <Button Content="Delete" Command="{Binding RemoveSelectedOverlayCommand}" Padding="6,3" Background="#C0392B" Foreground="{StaticResource TextLight}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </TabItem>
+
+                <!-- Tab 4: Clip Inspector & Properties -->
                 <TabItem Header="Clip Properties" Background="#2A2A2D" Foreground="{StaticResource TextLight}">
                     <views:ClipPropertiesPanel DataContext="{Binding}" />
                 </TabItem>
@@ -312,13 +546,47 @@
                             </Grid>
 
                             <!-- Subtitles / Captions Live Burn-In Display -->
-                            <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="20,0,20,24"
-                                    Background="#CC000000" CornerRadius="4" Padding="12,6"
+                            <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="24,0,24,28"
+                                    Background="#CC000000" CornerRadius="4" Padding="14,6"
                                     Visibility="{Binding ActiveCaptionVisibility}">
-                                <TextBlock Text="{Binding ActiveCaptionText}"
-                                           Foreground="#FFFFFF" FontSize="18" FontWeight="Bold"
-                                           TextAlignment="Center" TextWrapping="Wrap" />
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ActiveCaptionText}"
+                                               Foreground="#FFFFFF" FontSize="18" FontWeight="Bold"
+                                               TextAlignment="Center" TextWrapping="Wrap" />
+                                </StackPanel>
                             </Border>
+
+                            <!-- Animated Title Cards & Text Overlays Live Display -->
+                            <Grid Visibility="{Binding ActiveOverlayVisibility}" IsHitTestVisible="False" Margin="30,24">
+                                <Border HorizontalAlignment="{Binding ActiveOverlayHorizontalAlignment}"
+                                        VerticalAlignment="{Binding ActiveOverlayVerticalAlignment}"
+                                        Background="{Binding ActiveOverlayBackground, Converter={StaticResource HexToBrushConverter}}"
+                                        BorderBrush="{Binding ActiveOverlayBorder, Converter={StaticResource HexToBrushConverter}}"
+                                        BorderThickness="{Binding ActiveOverlayBorderWidth}"
+                                        CornerRadius="4" Padding="18,10"
+                                        Opacity="{Binding ActiveOverlayOpacity}">
+                                    <Border.RenderTransform>
+                                        <TranslateTransform X="{Binding ActiveOverlayTranslateX}" Y="{Binding ActiveOverlayTranslateY}" />
+                                    </Border.RenderTransform>
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding ActiveOverlayText}"
+                                                   Foreground="{Binding ActiveOverlayColor, Converter={StaticResource HexToBrushConverter}, ConverterParameter='#FFFFFFFF'}"
+                                                   FontFamily="{Binding ActiveOverlayFont}"
+                                                   FontSize="{Binding ActiveOverlayFontSize}"
+                                                   FontWeight="Bold"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding ActiveOverlaySubtitle}"
+                                                   Foreground="#00BCF9"
+                                                   FontFamily="{Binding ActiveOverlayFont}"
+                                                   FontSize="18"
+                                                   FontWeight="SemiBold"
+                                                   TextAlignment="Center"
+                                                   Margin="0,4,0,0"
+                                                   Visibility="{Binding ActiveOverlaySubtitle, Converter={StaticResource NullOrEmptyToVisibilityConverter}}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
 
                             <!-- Top-Right Timecode Display Overlay -->
                             <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12"

@@ -127,3 +127,57 @@ public class InverseBooleanToVisibilityConverter : IValueConverter
         return false;
     }
 }
+
+public class HexToBrushConverter : IValueConverter
+{
+    private static readonly BrushConverter BrushConv = new();
+
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is string hex && !string.IsNullOrWhiteSpace(hex))
+        {
+            try
+            {
+                var brush = (Brush?)BrushConv.ConvertFromString(hex);
+                if (brush != null) return brush;
+            }
+            catch
+            {
+                // Fallback below
+            }
+        }
+
+        if (parameter is string defaultColor)
+        {
+            try
+            {
+                var defBrush = (Brush?)BrushConv.ConvertFromString(defaultColor);
+                if (defBrush != null) return defBrush;
+            }
+            catch { }
+        }
+
+        return Brushes.Transparent;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class NullOrEmptyToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value == null) return Visibility.Collapsed;
+        if (value is string s && string.IsNullOrWhiteSpace(s)) return Visibility.Collapsed;
+        return Visibility.Visible;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
+

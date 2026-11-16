@@ -19,6 +19,8 @@
         <converters:AssetTypeToIconConverter x:Key="AssetTypeToIconConverter" />
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter" />
+        <converters:HexToBrushConverter x:Key="HexToBrushConverter" />
+        <converters:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter" />
 
         <sys:Double x:Key="SystemDouble025">0.25</sys:Double>
         <sys:Double x:Key="SystemDouble05">0.5</sys:Double>

@@ -75,6 +75,199 @@ public partial class MainViewModel : ObservableObject
     private Visibility _activeCaptionVisibility = Visibility.Collapsed;
 
     [ObservableProperty]
+    private CaptionStylePreset _activeCaptionStyle = CaptionStylePreset.Default;
+
+    [ObservableProperty]
+    private string _activeCaptionSpeaker = "";
+
+    // Subtitle Editor form properties
+    [ObservableProperty]
+    private string _captionEditorText = "";
+
+    [ObservableProperty]
+    private string _captionEditorSpeaker = "";
+
+    [ObservableProperty]
+    private double _captionEditorStartSeconds;
+
+    [ObservableProperty]
+    private double _captionEditorEndSeconds;
+
+    [ObservableProperty]
+    private CaptionStylePreset _captionEditorStyle = CaptionStylePreset.Default;
+
+    [ObservableProperty]
+    private string _subtitleValidationSummary = "";
+
+    [ObservableProperty]
+    private bool _hasSelectedCaption;
+
+    // Text Overlay / Title Card observables
+    [ObservableProperty]
+    private TextOverlay? _selectedOverlay;
+
+    [ObservableProperty]
+    private bool _hasSelectedOverlay;
+
+    // Active Preview Overlay state
+    [ObservableProperty]
+    private TextOverlay? _activeOverlay;
+
+    [ObservableProperty]
+    private string _activeOverlayText = "";
+
+    [ObservableProperty]
+    private string? _activeOverlaySubtitle;
+
+    [ObservableProperty]
+    private TitleCardStyle _activeOverlayStyle = TitleCardStyle.Custom;
+
+    [ObservableProperty]
+    private string _activeOverlayFont = "Segoe UI";
+
+    [ObservableProperty]
+    private double _activeOverlayFontSize = 48.0;
+
+    [ObservableProperty]
+    private string _activeOverlayColor = "#FFFFFFFF";
+
+    [ObservableProperty]
+    private string? _activeOverlayBackground;
+
+    [ObservableProperty]
+    private string? _activeOverlayBorder;
+
+    [ObservableProperty]
+    private int _activeOverlayBorderWidth;
+
+    [ObservableProperty]
+    private string? _activeOverlayShadowColor;
+
+    [ObservableProperty]
+    private int _activeOverlayShadowDepth;
+
+    [ObservableProperty]
+    private OverlayAlignment _activeOverlayAlignment = OverlayAlignment.Center;
+
+    [ObservableProperty]
+    private VerticalAlignment _activeOverlayVerticalAlignment = VerticalAlignment.Center;
+
+    [ObservableProperty]
+    private HorizontalAlignment _activeOverlayHorizontalAlignment = HorizontalAlignment.Center;
+
+    [ObservableProperty]
+    private double _activeOverlayPosX = 0.5;
+
+    [ObservableProperty]
+    private double _activeOverlayPosY = 0.5;
+
+    [ObservableProperty]
+    private Visibility _activeOverlayVisibility = Visibility.Collapsed;
+
+    [ObservableProperty]
+    private double _activeOverlayOpacity = 1.0;
+
+    [ObservableProperty]
+    private double _activeOverlayTranslateX = 0.0;
+
+    [ObservableProperty]
+    private double _activeOverlayTranslateY = 0.0;
+
+    // Overlay Editor form properties
+    [ObservableProperty]
+    private string _overlayEditorText = "";
+
+    [ObservableProperty]
+    private string _overlayEditorSubtitle = "";
+
+    [ObservableProperty]
+    private string _overlayEditorFont = "Segoe UI";
+
+    [ObservableProperty]
+    private double _overlayEditorFontSize = 48.0;
+
+    [ObservableProperty]
+    private string _overlayEditorColor = "#FFFFFFFF";
+
+    [ObservableProperty]
+    private string _overlayEditorBackground = "#CC111827";
+
+    [ObservableProperty]
+    private TitleCardStyle _overlayEditorStyle = TitleCardStyle.Custom;
+
+    [ObservableProperty]
+    private TextAnimationType _overlayEditorAnimation = TextAnimationType.Fade;
+
+    [ObservableProperty]
+    private double _overlayEditorAnimationDuration = 0.6;
+
+    [ObservableProperty]
+    private double _overlayEditorStartSeconds;
+
+    [ObservableProperty]
+    private double _overlayEditorDurationSeconds = 4.0;
+
+    [ObservableProperty]
+    private OverlayAlignment _overlayEditorAlignment = OverlayAlignment.Center;
+
+    [ObservableProperty]
+    private double _overlayEditorPosX = 0.5;
+
+    [ObservableProperty]
+    private double _overlayEditorPosY = 0.5;
+
+    [ObservableProperty]
+    private bool _overlayEditorIsBold;
+
+    [ObservableProperty]
+    private bool _overlayEditorIsItalic;
+
+    [ObservableProperty]
+    private string _overlayEditorBorderColor = "";
+
+    [ObservableProperty]
+    private int _overlayEditorBorderWidth;
+
+    partial void OnSelectedCaptionChanged(CaptionItem? value)
+    {
+        HasSelectedCaption = value != null;
+        if (value != null)
+        {
+            CaptionEditorText = value.Text ?? "";
+            CaptionEditorSpeaker = value.Speaker ?? "";
+            CaptionEditorStartSeconds = value.StartTime.TotalSeconds;
+            CaptionEditorEndSeconds = value.EndTime.TotalSeconds;
+            CaptionEditorStyle = value.StylePreset;
+        }
+    }
+
+    partial void OnSelectedOverlayChanged(TextOverlay? value)
+    {
+        HasSelectedOverlay = value != null;
+        if (value != null)
+        {
+            OverlayEditorText = value.Text ?? "";
+            OverlayEditorSubtitle = value.SubtitleText ?? "";
+            OverlayEditorFont = value.FontName ?? "Segoe UI";
+            OverlayEditorFontSize = value.FontSize;
+            OverlayEditorColor = value.ColorHex ?? "#FFFFFFFF";
+            OverlayEditorBackground = value.BackgroundColorHex ?? "";
+            OverlayEditorStyle = value.Style;
+            OverlayEditorAnimation = value.Animation;
+            OverlayEditorAnimationDuration = value.AnimationDuration;
+            OverlayEditorStartSeconds = value.StartTime.TotalSeconds;
+            OverlayEditorDurationSeconds = value.Duration.TotalSeconds;
+            OverlayEditorAlignment = value.Alignment;
+            OverlayEditorPosX = value.PositionX;
+            OverlayEditorPosY = value.PositionY;
+            OverlayEditorIsBold = value.IsBold;
+            OverlayEditorIsItalic = value.IsItalic;
+            OverlayEditorBorderColor = value.BorderColorHex ?? "";
+            OverlayEditorBorderWidth = value.BorderWidth;
+        }
+    }
+
+    [ObservableProperty]
     private string _appVersionDisplay = $"v{UpdateManager.CurrentVersionString}";
 
     [ObservableProperty]
@@ -283,13 +476,127 @@ public partial class MainViewModel : ObservableObject
             .FirstOrDefault(c => PlayheadPosition >= c.StartTime && PlayheadPosition <= c.EndTime);
         if (activeCap != null && !string.IsNullOrWhiteSpace(activeCap.Text))
         {
-            ActiveCaptionText = activeCap.Text;
+            ActiveCaptionText = !string.IsNullOrWhiteSpace(activeCap.Speaker)
+                ? $"[{activeCap.Speaker}] {activeCap.Text}"
+                : activeCap.Text;
+            ActiveCaptionSpeaker = activeCap.Speaker ?? "";
+            ActiveCaptionStyle = activeCap.StylePreset;
             ActiveCaptionVisibility = Visibility.Visible;
         }
         else
         {
             ActiveCaptionText = "";
+            ActiveCaptionSpeaker = "";
             ActiveCaptionVisibility = Visibility.Collapsed;
+        }
+
+        // Active animated text overlay / title card
+        var activeOv = CurrentProject.Overlays
+            .FirstOrDefault(o => PlayheadPosition >= o.StartTime && PlayheadPosition <= o.EndTime);
+        if (activeOv != null && !string.IsNullOrWhiteSpace(activeOv.Text))
+        {
+            ActiveOverlay = activeOv;
+            ActiveOverlayText = activeOv.Text;
+            ActiveOverlaySubtitle = activeOv.SubtitleText;
+            ActiveOverlayStyle = activeOv.Style;
+            ActiveOverlayFont = activeOv.FontName;
+            ActiveOverlayFontSize = activeOv.FontSize;
+            ActiveOverlayColor = activeOv.ColorHex;
+            ActiveOverlayBackground = activeOv.BackgroundColorHex;
+            ActiveOverlayBorder = activeOv.BorderColorHex;
+            ActiveOverlayBorderWidth = activeOv.BorderWidth;
+            ActiveOverlayShadowColor = activeOv.ShadowColorHex;
+            ActiveOverlayShadowDepth = activeOv.ShadowDepth;
+            ActiveOverlayAlignment = activeOv.Alignment;
+            ActiveOverlayPosX = activeOv.PositionX;
+            ActiveOverlayPosY = activeOv.PositionY;
+            ActiveOverlayVisibility = Visibility.Visible;
+
+            if (activeOv.Style == TitleCardStyle.LowerThird)
+            {
+                ActiveOverlayVerticalAlignment = VerticalAlignment.Bottom;
+                ActiveOverlayHorizontalAlignment = HorizontalAlignment.Left;
+            }
+            else if (activeOv.Style == TitleCardStyle.Minimalist)
+            {
+                ActiveOverlayVerticalAlignment = VerticalAlignment.Bottom;
+                ActiveOverlayHorizontalAlignment = HorizontalAlignment.Center;
+            }
+            else
+            {
+                ActiveOverlayVerticalAlignment = VerticalAlignment.Center;
+                ActiveOverlayHorizontalAlignment = HorizontalAlignment.Center;
+            }
+
+            double progress = (PlayheadPosition - activeOv.StartTime).TotalSeconds;
+            double remaining = (activeOv.EndTime - PlayheadPosition).TotalSeconds;
+            double aDur = Math.Max(0.1, Math.Min(activeOv.AnimationDuration, activeOv.Duration.TotalSeconds / 2));
+
+            switch (activeOv.Animation)
+            {
+                case TextAnimationType.Fade:
+                    if (progress < aDur) ActiveOverlayOpacity = Math.Clamp(progress / aDur, 0.0, 1.0);
+                    else if (remaining < aDur) ActiveOverlayOpacity = Math.Clamp(remaining / aDur, 0.0, 1.0);
+                    else ActiveOverlayOpacity = 1.0;
+                    ActiveOverlayTranslateX = 0;
+                    ActiveOverlayTranslateY = 0;
+                    break;
+                case TextAnimationType.SlideUp:
+                    if (progress < aDur)
+                    {
+                        double factor = 1.0 - (progress / aDur);
+                        ActiveOverlayTranslateY = factor * 40.0;
+                        ActiveOverlayOpacity = Math.Clamp(progress / aDur, 0.0, 1.0);
+                    }
+                    else if (remaining < aDur)
+                    {
+                        double factor = 1.0 - (remaining / aDur);
+                        ActiveOverlayTranslateY = factor * 40.0;
+                        ActiveOverlayOpacity = Math.Clamp(remaining / aDur, 0.0, 1.0);
+                    }
+                    else
+                    {
+                        ActiveOverlayTranslateY = 0;
+                        ActiveOverlayOpacity = 1.0;
+                    }
+                    ActiveOverlayTranslateX = 0;
+                    break;
+                case TextAnimationType.SlideLeft:
+                    if (progress < aDur)
+                    {
+                        double factor = 1.0 - (progress / aDur);
+                        ActiveOverlayTranslateX = -factor * 80.0;
+                        ActiveOverlayOpacity = Math.Clamp(progress / aDur, 0.0, 1.0);
+                    }
+                    else if (remaining < aDur)
+                    {
+                        double factor = 1.0 - (remaining / aDur);
+                        ActiveOverlayTranslateX = factor * 80.0;
+                        ActiveOverlayOpacity = Math.Clamp(remaining / aDur, 0.0, 1.0);
+                    }
+                    else
+                    {
+                        ActiveOverlayTranslateX = 0;
+                        ActiveOverlayOpacity = 1.0;
+                    }
+                    ActiveOverlayTranslateY = 0;
+                    break;
+                default:
+                    ActiveOverlayOpacity = 1.0;
+                    ActiveOverlayTranslateX = 0;
+                    ActiveOverlayTranslateY = 0;
+                    break;
+            }
+        }
+        else
+        {
+            ActiveOverlay = null;
+            ActiveOverlayText = "";
+            ActiveOverlaySubtitle = null;
+            ActiveOverlayVisibility = Visibility.Collapsed;
+            ActiveOverlayOpacity = 1.0;
+            ActiveOverlayTranslateX = 0;
+            ActiveOverlayTranslateY = 0;
         }
 
         PreviewStateChanged?.Invoke(ActiveVideoPath, ActiveVideoPosition, isPlaying);
@@ -954,53 +1261,307 @@ public partial class MainViewModel : ObservableObject
         UpdatePlaybackState(IsPlaying);
     }
 
+    #region Subtitles and Captions Management
+
     [RelayCommand]
-    public void AddCaption(string text)
+    public void AddCaption(string? text = null)
     {
+        var captionText = !string.IsNullOrWhiteSpace(text) ? text : "New Subtitle Text";
         int index = CurrentProject.Captions.Count + 1;
         var start = PlayheadPosition;
         var end = start + TimeSpan.FromSeconds(3);
-        var caption = new CaptionItem(index, start, end, text);
+        var caption = new CaptionItem(index, start, end, captionText);
 
-        CurrentProject.Captions.Add(caption);
+        var cmd = new AddCaptionCommand(CurrentProject, caption);
+        CommandManager.Execute(cmd);
         SelectedCaption = caption;
         UpdatePlaybackState(IsPlaying);
-        Notifier.Announce($"Added caption: '{text}' at {start:mm\\:ss}");
+        Notifier.Announce($"Added caption #{index}: '{captionText}' at {start:mm\\:ss}");
     }
 
     [RelayCommand]
-    public void ImportSrtFile(string filePath)
+    public void RemoveSelectedCaption()
+    {
+        if (SelectedCaption == null) return;
+        var target = SelectedCaption;
+        var cmd = new RemoveCaptionCommand(CurrentProject, target);
+        CommandManager.Execute(cmd);
+        SelectedCaption = CurrentProject.Captions.FirstOrDefault();
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Removed caption #{target.Index}.");
+    }
+
+    [RelayCommand]
+    public void CommitCaptionEdit()
+    {
+        if (SelectedCaption == null) return;
+
+        var start = TimeSpan.FromSeconds(Math.Max(0, CaptionEditorStartSeconds));
+        var end = TimeSpan.FromSeconds(Math.Max(CaptionEditorStartSeconds + 0.1, CaptionEditorEndSeconds));
+        var newValues = new CaptionItem(
+            SelectedCaption.Index,
+            start,
+            end,
+            CaptionEditorText,
+            string.IsNullOrWhiteSpace(CaptionEditorSpeaker) ? null : CaptionEditorSpeaker.Trim(),
+            CaptionEditorStyle);
+
+        var cmd = new UpdateCaptionCommand(SelectedCaption, newValues);
+        CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Saved changes to caption #{SelectedCaption.Index}.");
+    }
+
+    [RelayCommand]
+    public void SplitSelectedCaptionAtPlayhead()
+    {
+        if (SelectedCaption == null) return;
+        if (PlayheadPosition <= SelectedCaption.StartTime || PlayheadPosition >= SelectedCaption.EndTime)
+        {
+            Notifier.Announce("Playhead must be inside selected caption to split.");
+            return;
+        }
+
+        var cmd = new SplitCaptionCommand(CurrentProject, SelectedCaption, PlayheadPosition);
+        CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce("Caption split into two parts.");
+    }
+
+    [RelayCommand]
+    public void MergeSelectedCaptionWithNext()
+    {
+        if (SelectedCaption == null) return;
+        var list = CurrentProject.Captions.OrderBy(c => c.StartTime).ToList();
+        int idx = list.IndexOf(SelectedCaption);
+        if (idx < 0 || idx >= list.Count - 1)
+        {
+            Notifier.Announce("No subsequent caption available to merge with.");
+            return;
+        }
+
+        var next = list[idx + 1];
+        var cmd = new MergeCaptionsCommand(CurrentProject, SelectedCaption, next);
+        CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Merged caption #{SelectedCaption.Index} with #{next.Index}.");
+    }
+
+    [RelayCommand]
+    public void ShiftCaptions(double seconds)
+    {
+        if (CurrentProject.Captions.Count == 0) return;
+        var offset = TimeSpan.FromSeconds(seconds);
+        var cmd = new ShiftCaptionsCommand(CurrentProject, offset);
+        CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Shifted all subtitles by {seconds:+#0.00;-#0.00}s.");
+    }
+
+    [RelayCommand]
+    public void ShiftCaptionsEarlier() => ShiftCaptions(-0.5);
+
+    [RelayCommand]
+    public void ShiftCaptionsLater() => ShiftCaptions(0.5);
+
+    [RelayCommand]
+    public void ValidateSubtitles()
+    {
+        var issues = SrtSubtitleService.ValidateCaptions(CurrentProject.Captions);
+        if (issues.Count == 0)
+        {
+            SubtitleValidationSummary = $"✓ All {CurrentProject.Captions.Count} captions are perfectly valid. No timing or reading speed issues detected.";
+            Notifier.Announce("Subtitle validation passed with 0 issues.");
+        }
+        else
+        {
+            SubtitleValidationSummary = $"Found {issues.Count} issue(s):\n" + string.Join("\n", issues.Take(4).Select(i => $"• {i.Message}"));
+            Notifier.Announce($"Subtitle validation found {issues.Count} potential issues.");
+        }
+    }
+
+    [RelayCommand]
+    public void ImportSubtitlesFile(string filePath)
     {
         try
         {
-            var items = SrtSubtitleService.LoadSrtFile(filePath);
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            var items = ext == ".vtt"
+                ? SrtSubtitleService.LoadVttFile(filePath)
+                : SrtSubtitleService.LoadSrtFile(filePath);
+
             CurrentProject.Captions.Clear();
             foreach (var item in items)
             {
                 CurrentProject.Captions.Add(item);
             }
+            SelectedCaption = CurrentProject.Captions.FirstOrDefault();
             UpdatePlaybackState(IsPlaying);
             Notifier.Announce($"Imported {items.Count} subtitles from {Path.GetFileName(filePath)}");
         }
         catch (Exception ex)
         {
-            Notifier.Announce($"Failed to import SRT: {ex.Message}");
+            Notifier.Announce($"Failed to import subtitles: {ex.Message}");
         }
     }
 
     [RelayCommand]
-    public void ExportSrtFile(string filePath)
+    public void ExportSubtitlesFile(string filePath)
     {
         try
         {
-            SrtSubtitleService.SaveSrtFile(CurrentProject.Captions, filePath);
+            var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            if (ext == ".vtt")
+            {
+                SrtSubtitleService.SaveVttFile(CurrentProject.Captions, filePath);
+            }
+            else
+            {
+                SrtSubtitleService.SaveSrtFile(CurrentProject.Captions, filePath);
+            }
             Notifier.Announce($"Exported subtitles to {Path.GetFileName(filePath)}");
         }
         catch (Exception ex)
         {
-            Notifier.Announce($"Failed to export SRT: {ex.Message}");
+            Notifier.Announce($"Failed to export subtitles: {ex.Message}");
         }
     }
+
+    [RelayCommand]
+    public void ImportSrtFile(string filePath) => ImportSubtitlesFile(filePath);
+
+    [RelayCommand]
+    public void ExportSrtFile(string filePath) => ExportSubtitlesFile(filePath);
+
+    #endregion
+
+    #region Titles and Animated Text Overlays Management
+
+    [RelayCommand]
+    public void AddTitleCardPreset(TitleCardStyle style)
+    {
+        TextOverlay overlay = style switch
+        {
+            TitleCardStyle.LowerThird => TitleCardPresets.CreateLowerThird("Presenter Name", "Designation", PlayheadPosition),
+            TitleCardStyle.CinematicHeader => TitleCardPresets.CreateCinematicHeader("EPISODE TITLE", PlayheadPosition),
+            TitleCardStyle.BoldHeadline => TitleCardPresets.CreateBoldHeadline("BREAKING HIGHLIGHT", PlayheadPosition),
+            TitleCardStyle.Minimalist => TitleCardPresets.CreateMinimalist("Chapter One: The Beginning", PlayheadPosition),
+            TitleCardStyle.NeonGlow => TitleCardPresets.CreateNeonGlow("CYBER SOUNDS", PlayheadPosition),
+            TitleCardStyle.VintageRetro => TitleCardPresets.CreateVintageRetro("Classic Chronicles", PlayheadPosition),
+            _ => new TextOverlay { StartTime = PlayheadPosition, Text = "Title Overlay" }
+        };
+
+        var cmd = new AddTextOverlayCommand(CurrentProject, overlay);
+        CommandManager.Execute(cmd);
+        SelectedOverlay = overlay;
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Added {style} title card at {PlayheadPosition:mm\\:ss}.");
+    }
+
+    [RelayCommand] public void AddLowerThirdPreset() => AddTitleCardPreset(TitleCardStyle.LowerThird);
+    [RelayCommand] public void AddCinematicHeaderPreset() => AddTitleCardPreset(TitleCardStyle.CinematicHeader);
+    [RelayCommand] public void AddBoldHeadlinePreset() => AddTitleCardPreset(TitleCardStyle.BoldHeadline);
+    [RelayCommand] public void AddMinimalistPreset() => AddTitleCardPreset(TitleCardStyle.Minimalist);
+    [RelayCommand] public void AddNeonGlowPreset() => AddTitleCardPreset(TitleCardStyle.NeonGlow);
+    [RelayCommand] public void AddVintageRetroPreset() => AddTitleCardPreset(TitleCardStyle.VintageRetro);
+
+    [RelayCommand] public void ApplyLowerThirdPreset() => ApplyPresetToSelectedOverlay(TitleCardStyle.LowerThird);
+    [RelayCommand] public void ApplyCinematicHeaderPreset() => ApplyPresetToSelectedOverlay(TitleCardStyle.CinematicHeader);
+    [RelayCommand] public void ApplyBoldHeadlinePreset() => ApplyPresetToSelectedOverlay(TitleCardStyle.BoldHeadline);
+    [RelayCommand] public void ApplyNeonGlowPreset() => ApplyPresetToSelectedOverlay(TitleCardStyle.NeonGlow);
+
+    [RelayCommand]
+    public void AddDefaultOverlay()
+    {
+        AddTitleCardPreset(TitleCardStyle.CinematicHeader);
+    }
+
+    [RelayCommand]
+    public void RemoveSelectedOverlay()
+    {
+        if (SelectedOverlay == null) return;
+        var target = SelectedOverlay;
+        var cmd = new RemoveTextOverlayCommand(CurrentProject, target);
+        CommandManager.Execute(cmd);
+        SelectedOverlay = CurrentProject.Overlays.FirstOrDefault();
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Removed title overlay '{target.Text}'.");
+    }
+
+    [RelayCommand]
+    public void CommitOverlayEdit()
+    {
+        if (SelectedOverlay == null) return;
+
+        var start = TimeSpan.FromSeconds(Math.Max(0, OverlayEditorStartSeconds));
+        var duration = TimeSpan.FromSeconds(Math.Max(0.5, OverlayEditorDurationSeconds));
+
+        var newValues = new TextOverlay
+        {
+            Text = OverlayEditorText,
+            SubtitleText = string.IsNullOrWhiteSpace(OverlayEditorSubtitle) ? null : OverlayEditorSubtitle,
+            FontName = OverlayEditorFont,
+            FontSize = OverlayEditorFontSize,
+            ColorHex = OverlayEditorColor,
+            BackgroundColorHex = string.IsNullOrWhiteSpace(OverlayEditorBackground) ? null : OverlayEditorBackground,
+            Style = OverlayEditorStyle,
+            Animation = OverlayEditorAnimation,
+            AnimationDuration = OverlayEditorAnimationDuration,
+            StartTime = start,
+            Duration = duration,
+            Alignment = OverlayEditorAlignment,
+            PositionX = OverlayEditorPosX,
+            PositionY = OverlayEditorPosY,
+            IsBold = OverlayEditorIsBold,
+            IsItalic = OverlayEditorIsItalic,
+            BorderColorHex = string.IsNullOrWhiteSpace(OverlayEditorBorderColor) ? null : OverlayEditorBorderColor,
+            BorderWidth = OverlayEditorBorderWidth
+        };
+
+        var cmd = new UpdateTextOverlayCommand(SelectedOverlay, newValues);
+        CommandManager.Execute(cmd);
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Updated title card '{SelectedOverlay.Text}'.");
+    }
+
+    [RelayCommand]
+    public void ApplyPresetToSelectedOverlay(TitleCardStyle style)
+    {
+        if (SelectedOverlay == null) return;
+
+        TextOverlay template = style switch
+        {
+            TitleCardStyle.LowerThird => TitleCardPresets.CreateLowerThird(),
+            TitleCardStyle.CinematicHeader => TitleCardPresets.CreateCinematicHeader(),
+            TitleCardStyle.BoldHeadline => TitleCardPresets.CreateBoldHeadline(),
+            TitleCardStyle.Minimalist => TitleCardPresets.CreateMinimalist(),
+            TitleCardStyle.NeonGlow => TitleCardPresets.CreateNeonGlow(),
+            TitleCardStyle.VintageRetro => TitleCardPresets.CreateVintageRetro(),
+            _ => new TextOverlay()
+        };
+
+        var cmd = new ApplyTitleCardPresetCommand(SelectedOverlay, template);
+        CommandManager.Execute(cmd);
+        OnSelectedOverlayChanged(SelectedOverlay);
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Applied {style} preset to '{SelectedOverlay.Text}'.");
+    }
+
+    [RelayCommand]
+    public void DuplicateSelectedOverlay()
+    {
+        if (SelectedOverlay == null) return;
+
+        var dup = SelectedOverlay.Clone();
+        dup.StartTime = PlayheadPosition;
+        var cmd = new AddTextOverlayCommand(CurrentProject, dup);
+        CommandManager.Execute(cmd);
+        SelectedOverlay = dup;
+        UpdatePlaybackState(IsPlaying);
+        Notifier.Announce($"Duplicated title card at {PlayheadPosition:mm\\:ss}.");
+    }
+
+    #endregion
 
     [RelayCommand]
     public void Undo()

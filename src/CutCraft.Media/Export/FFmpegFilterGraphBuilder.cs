@@ -195,7 +195,7 @@ public class FFmpegFilterGraphBuilder
             }
         }
 
-        // 3. Process Text Overlays (Title Cards & Lower Thirds)
+        // 3. Process Text Overlays (Title Cards, Lower Thirds & Animated Text)
         string textCompOut = overlayCompOut;
         for (int i = 0; i < project.Overlays.Count; i++)
         {
@@ -205,13 +205,98 @@ public class FFmpegFilterGraphBuilder
             int posY = (int)(overlay.PositionY * height);
             double tStart = overlay.StartTime.TotalSeconds;
             double tEnd = (overlay.StartTime + overlay.Duration).TotalSeconds;
+            double aDur = Math.Max(0.1, Math.Min(overlay.AnimationDuration, overlay.Duration.TotalSeconds / 2));
 
             var safeText = EscapeDrawText(overlay.Text);
-            var color = overlay.ColorHex.Replace("#", "0x");
-            var drawText = $"drawtext=text='{safeText}':fontsize={overlay.FontSize}:fontcolor={color}:x={posX}:y={posY}:enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+            var color = FormatHexColor(overlay.ColorHex);
 
+            var drawTextParts = new List<string>
+            {
+                $"text='{safeText}'",
+                $"fontsize={overlay.FontSize}",
+                $"fontcolor={color}"
+            };
+
+            // Positioning & Dynamic Animation Expressions
+            string xExpr;
+            string yExpr;
+
+            switch (overlay.Alignment)
+            {
+                case OverlayAlignment.Center:
+                    xExpr = $"(w-text_w)/2";
+                    break;
+                case OverlayAlignment.Right:
+                    xExpr = $"w-text_w-{Math.Max(20, width - posX)}";
+                    break;
+                case OverlayAlignment.Left:
+                default:
+                    xExpr = $"{posX}";
+                    break;
+            }
+            yExpr = $"{posY}";
+
+            switch (overlay.Animation)
+            {
+                case TextAnimationType.SlideUp:
+                    yExpr = $"if(lt(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)}+{aDur.ToString("F3", CultureInfo.InvariantCulture)}),{posY}+(1-(t-{tStart.ToString("F3", CultureInfo.InvariantCulture)})/{aDur.ToString("F3", CultureInfo.InvariantCulture)})*60,{posY})";
+                    drawTextParts.Add($"alpha='if(lt(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)}+{aDur.ToString("F3", CultureInfo.InvariantCulture)}),(t-{tStart.ToString("F3", CultureInfo.InvariantCulture)})/{aDur.ToString("F3", CultureInfo.InvariantCulture)},if(gt(t,{tEnd.ToString("F3", CultureInfo.InvariantCulture)}-{aDur.ToString("F3", CultureInfo.InvariantCulture)}),({tEnd.ToString("F3", CultureInfo.InvariantCulture)}-t)/{aDur.ToString("F3", CultureInfo.InvariantCulture)},1))'");
+                    break;
+                case TextAnimationType.SlideLeft:
+                    xExpr = $"if(lt(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)}+{aDur.ToString("F3", CultureInfo.InvariantCulture)}),{posX}-(1-(t-{tStart.ToString("F3", CultureInfo.InvariantCulture)})/{aDur.ToString("F3", CultureInfo.InvariantCulture)})*120,{posX})";
+                    drawTextParts.Add($"alpha='if(lt(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)}+{aDur.ToString("F3", CultureInfo.InvariantCulture)}),(t-{tStart.ToString("F3", CultureInfo.InvariantCulture)})/{aDur.ToString("F3", CultureInfo.InvariantCulture)},if(gt(t,{tEnd.ToString("F3", CultureInfo.InvariantCulture)}-{aDur.ToString("F3", CultureInfo.InvariantCulture)}),({tEnd.ToString("F3", CultureInfo.InvariantCulture)}-t)/{aDur.ToString("F3", CultureInfo.InvariantCulture)},1))'");
+                    break;
+                case TextAnimationType.Fade:
+                    drawTextParts.Add($"alpha='if(lt(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)}+{aDur.ToString("F3", CultureInfo.InvariantCulture)}),(t-{tStart.ToString("F3", CultureInfo.InvariantCulture)})/{aDur.ToString("F3", CultureInfo.InvariantCulture)},if(gt(t,{tEnd.ToString("F3", CultureInfo.InvariantCulture)}-{aDur.ToString("F3", CultureInfo.InvariantCulture)}),({tEnd.ToString("F3", CultureInfo.InvariantCulture)}-t)/{aDur.ToString("F3", CultureInfo.InvariantCulture)},1))'");
+                    break;
+                case TextAnimationType.ZoomIn:
+                    drawTextParts.Add($"alpha='if(lt(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)}+{aDur.ToString("F3", CultureInfo.InvariantCulture)}),(t-{tStart.ToString("F3", CultureInfo.InvariantCulture)})/{aDur.ToString("F3", CultureInfo.InvariantCulture)},if(gt(t,{tEnd.ToString("F3", CultureInfo.InvariantCulture)}-{aDur.ToString("F3", CultureInfo.InvariantCulture)}),({tEnd.ToString("F3", CultureInfo.InvariantCulture)}-t)/{aDur.ToString("F3", CultureInfo.InvariantCulture)},1))'");
+                    break;
+            }
+
+            drawTextParts.Add($"x={xExpr}");
+            drawTextParts.Add($"y={yExpr}");
+
+            // Background box banner styling
+            if (!string.IsNullOrEmpty(overlay.BackgroundColorHex))
+            {
+                drawTextParts.Add("box=1");
+                drawTextParts.Add($"boxcolor={FormatHexColor(overlay.BackgroundColorHex)}");
+                drawTextParts.Add($"boxborderw={overlay.BoxPadding}");
+            }
+
+            // Outline / Border styling
+            if (overlay.BorderWidth > 0 && !string.IsNullOrEmpty(overlay.BorderColorHex))
+            {
+                drawTextParts.Add($"borderw={overlay.BorderWidth}");
+                drawTextParts.Add($"bordercolor={FormatHexColor(overlay.BorderColorHex)}");
+            }
+
+            // Drop shadow styling
+            if (overlay.ShadowDepth > 0 && !string.IsNullOrEmpty(overlay.ShadowColorHex))
+            {
+                drawTextParts.Add($"shadowcolor={FormatHexColor(overlay.ShadowColorHex)}");
+                drawTextParts.Add($"shadowx={overlay.ShadowDepth}");
+                drawTextParts.Add($"shadowy={overlay.ShadowDepth}");
+            }
+
+            drawTextParts.Add($"enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'");
+
+            var drawText = $"drawtext={string.Join(":", drawTextParts)}";
             filterGraph.Append($"[{textCompOut}]{drawText}[{nextTextOut}];\n");
             textCompOut = nextTextOut;
+
+            // Subtitle secondary text for lower-thirds
+            if (!string.IsNullOrWhiteSpace(overlay.SubtitleText))
+            {
+                string nextSubOut = $"v_txt_sub_{i}";
+                var safeSub = EscapeDrawText(overlay.SubtitleText);
+                var subFontSize = Math.Max(14, (int)(overlay.FontSize * 0.65));
+                var subPosY = posY + (int)overlay.FontSize + 8;
+                var drawSub = $"drawtext=text='{safeSub}':fontsize={subFontSize}:fontcolor=0x00BCF9:x={posX}:y={subPosY}:enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                filterGraph.Append($"[{textCompOut}]{drawSub}[{nextSubOut}];\n");
+                textCompOut = nextSubOut;
+            }
         }
 
         // 4. Process Captions / Subtitles Track
@@ -226,8 +311,25 @@ public class FFmpegFilterGraphBuilder
                 double tEnd = cap.EndTime.TotalSeconds;
                 var safeCap = EscapeDrawText(cap.Text);
 
-                // Position captions cleanly centered at bottom with dark background box
-                var drawCap = $"drawtext=text='{safeCap}':fontsize={height / 30}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8:x=(w-text_w)/2:y=h-(text_h*2.5):enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                string drawCap;
+                switch (cap.StylePreset)
+                {
+                    case CaptionStylePreset.YellowCinema:
+                        drawCap = $"drawtext=text='{safeCap}':fontsize={height / 28}:fontcolor=yellow:shadowcolor=black@0.8:shadowx=2:shadowy=2:x=(w-text_w)/2:y=h-(text_h*2.5):enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                        break;
+                    case CaptionStylePreset.HighContrastWhite:
+                        drawCap = $"drawtext=text='{safeCap}':fontsize={height / 28}:fontcolor=white:borderw=2:bordercolor=black:x=(w-text_w)/2:y=h-(text_h*2.5):enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                        break;
+                    case CaptionStylePreset.TopHeader:
+                        drawCap = $"drawtext=text='{safeCap}':fontsize={height / 30}:fontcolor=white:box=1:boxcolor=black@0.65:boxborderw=8:x=(w-text_w)/2:y=h*0.08:enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                        break;
+                    case CaptionStylePreset.BoxedDark:
+                    case CaptionStylePreset.Default:
+                    default:
+                        // Position captions cleanly centered at bottom with dark background box
+                        drawCap = $"drawtext=text='{safeCap}':fontsize={height / 30}:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8:x=(w-text_w)/2:y=h-(text_h*2.5):enable='between(t,{tStart.ToString("F3", CultureInfo.InvariantCulture)},{tEnd.ToString("F3", CultureInfo.InvariantCulture)})'";
+                        break;
+                }
 
                 filterGraph.Append($"[{captionCompOut}]{drawCap}[{nextCapOut}];\n");
                 captionCompOut = nextCapOut;
@@ -543,5 +645,16 @@ public class FFmpegFilterGraphBuilder
             .Replace("'", "\\'")
             .Replace(":", "\\:")
             .Replace("%", "\\%");
+    }
+
+    private static string FormatHexColor(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex)) return "white";
+        var clean = hex.Trim().TrimStart('#');
+        if (clean.Length == 6 || clean.Length == 8)
+        {
+            return "0x" + clean;
+        }
+        return hex;
     }
 }

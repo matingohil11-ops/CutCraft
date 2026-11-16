@@ -98,6 +98,14 @@ CutCraft/
   - Instagram 1:1 Square export preset (1080x1080)
   - High-Quality Animated GIF export via two-pass `palettegen` & `paletteuse`
   - Audio-Only MP3 extraction preset (192 kbps)
+- [x] **Phase 12: Subtitles, Captions & Animated Title Cards**
+  - Dual-format subtitle support: SubRip (`.srt`) and WebVTT (`.vtt`) import/export
+  - Subtitle timing & editing operations: time shifting (`+0.5s` / `-0.5s`), split caption at playhead, merge adjacent captions, and re-indexing
+  - Subtitle QA validation engine: automated detection of overlapping cues, invalid timestamps, and reading speed warnings (> 26 chars/sec)
+  - Stylized Title Cards library: 6 turnkey templates (*Lower Third*, *Cinematic Header*, *Bold Headline*, *Minimalist*, *Neon Cyber Glow*, *Vintage Retro*)
+  - Motion typography animations: smooth Fade, Slide Up, Slide Left, and Zoom In with dynamic FFmpeg `drawtext` alpha & motion expressions
+  - Full Undo/Redo command architecture (`CaptionCommands` & `TextOverlayCommands`) integrated with screen reader accessibility
+  - Real-time preview player burn-in with live animated transforms and typography rendering
 
 ---
 
