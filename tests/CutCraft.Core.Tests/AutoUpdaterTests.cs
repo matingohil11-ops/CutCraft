@@ -7,23 +7,24 @@ namespace CutCraft.Core.Tests;
 public class AutoUpdaterTests
 {
     [Fact]
-    public void UpdateManager_CurrentVersion_IsZeroPointOnePointOne()
+    public void UpdateManager_CurrentVersion_IsOnePointOnePointOne()
     {
-        Assert.Equal("0.1.1", UpdateManager.CurrentVersionString);
-        Assert.Equal(new Version(0, 1, 1), UpdateManager.CurrentVersion);
+        Assert.Equal("1.1.1", UpdateManager.CurrentVersionString);
+        Assert.Equal(new Version(1, 1, 1), UpdateManager.CurrentVersion);
     }
 
     [Theory]
-    [InlineData("0.2", "0.1.1", true)]
-    [InlineData("1.0.0", "0.1.1", true)]
-    [InlineData("0.1.2", "0.1.1", true)]
-    [InlineData("0.1.1", "0.1.1", false)]
-    [InlineData("0.1.0", "0.1.1", false)]
-    [InlineData("0.0", "0.1.1", false)]
+    [InlineData("1.2", "1.1.1", true)]
+    [InlineData("2.0.0", "1.1.1", true)]
+    [InlineData("1.1.2", "1.1.1", true)]
+    [InlineData("1.1.1", "1.1.1", false)]
+    [InlineData("1.1.0", "1.1.1", false)]
+    [InlineData("0.1.0", "1.1.1", false)]
+    [InlineData("0.0", "1.1.1", false)]
     [InlineData("0.10.0", "0.9.0", true)]
-    [InlineData("v0.2.0", "0.1.1", true)]
-    [InlineData("v0.1.1", "0.1.1", false)]
-    [InlineData("0.2.0-beta", "0.1.1", true)]
+    [InlineData("v1.2.0", "1.1.1", true)]
+    [InlineData("v1.1.1", "1.1.1", false)]
+    [InlineData("1.2.0-beta", "1.1.1", true)]
     public void IsVersionGreater_CorrectlyEvaluatesVersions(string candidate, string current, bool expected)
     {
         var result = UpdateManager.IsVersionGreater(candidate, current);
@@ -31,17 +32,17 @@ public class AutoUpdaterTests
     }
 
     [Fact]
-    public async Task CheckForUpdatesAsync_WithLocalManifest_DetectsVersionZeroPointOnePointOne()
+    public async Task CheckForUpdatesAsync_WithLocalManifest_DetectsVersionOnePointOnePointOne()
     {
         var tempFile = Path.GetTempFileName();
         try
         {
             var manifest = new UpdateInfo
             {
-                Version = "0.1.1",
-                Name = "CutCraft v0.1.1",
-                ReleaseNotes = "Release v0.1.1",
-                DownloadUrl = "https://github.com/matingohil11-ops/CutCraft/releases/download/v0.1.1/CutCraft-v0.1.1-win-x64.zip"
+                Version = "1.1.1",
+                Name = "CutCraft v1.1.1",
+                ReleaseNotes = "Release v1.1.1",
+                DownloadUrl = "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.1.1/CutCraft-v1.1.1-win-x64.zip"
             };
 
             await File.WriteAllTextAsync(tempFile, JsonSerializer.Serialize(manifest));
@@ -51,8 +52,8 @@ public class AutoUpdaterTests
 
             Assert.NotNull(checkResult);
             Assert.True(checkResult.IsSuccess);
-            Assert.False(checkResult.HasUpdate); // 0.1.1 is current version
-            Assert.Equal("0.1.1", checkResult.CurrentVersion);
+            Assert.False(checkResult.HasUpdate); // 1.1.1 is current version
+            Assert.Equal("1.1.1", checkResult.CurrentVersion);
             Assert.Contains("up to date", checkResult.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("latest version", checkResult.Message, StringComparison.OrdinalIgnoreCase);
         }
@@ -73,10 +74,10 @@ public class AutoUpdaterTests
         {
             var manifest = new UpdateInfo
             {
-                Version = "0.2.0",
-                Name = "CutCraft v0.2.0 Preview",
-                ReleaseNotes = "New features in v0.2",
-                DownloadUrl = "https://github.com/matingohil11-ops/CutCraft/releases/download/v0.2.0/CutCraft-v0.2.0.zip"
+                Version = "1.2.0",
+                Name = "CutCraft v1.2.0 Preview",
+                ReleaseNotes = "New features in v1.2",
+                DownloadUrl = "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.2.0/CutCraft-v1.2.0.zip"
             };
 
             await File.WriteAllTextAsync(tempFile, JsonSerializer.Serialize(manifest));
@@ -87,7 +88,7 @@ public class AutoUpdaterTests
             Assert.NotNull(checkResult);
             Assert.True(checkResult.IsSuccess);
             Assert.True(checkResult.HasUpdate);
-            Assert.Equal("0.2.0", checkResult.LatestVersion);
+            Assert.Equal("1.2.0", checkResult.LatestVersion);
             Assert.Contains("Update available", checkResult.Message, StringComparison.OrdinalIgnoreCase);
         }
         finally
@@ -100,7 +101,7 @@ public class AutoUpdaterTests
     }
 
     [Fact]
-    public async Task CheckForUpdatesAsync_WithProjectManifest_DetectsVersionOnePointOnePointZero()
+    public async Task CheckForUpdatesAsync_WithProjectManifest_DetectsVersionOnePointOnePointOne()
     {
         var manifestPath = @"C:\Users\admin\.gemini\antigravity\scratch\CutCraft\update-manifest.json";
         if (File.Exists(manifestPath))
@@ -110,10 +111,10 @@ public class AutoUpdaterTests
 
             Assert.NotNull(checkResult);
             Assert.True(checkResult.IsSuccess);
-            Assert.True(checkResult.HasUpdate);
-            Assert.Equal("1.1.0", checkResult.LatestVersion);
-            Assert.Equal("0.1.1", checkResult.CurrentVersion);
-            Assert.Contains("1.1.0", checkResult.Message);
+            Assert.False(checkResult.HasUpdate);
+            Assert.Equal("1.1.1", checkResult.LatestVersion);
+            Assert.Equal("1.1.1", checkResult.CurrentVersion);
+            Assert.Contains("up to date", checkResult.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -171,12 +172,12 @@ public class AutoUpdaterTests
         {
             var settings = new UserSettings
             {
-                SkippedVersion = "0.2.0"
+                SkippedVersion = "1.2.0"
             };
             settings.Save(tempFile);
 
             var loaded = UserSettings.Load(tempFile);
-            Assert.Equal("0.2.0", loaded.SkippedVersion);
+            Assert.Equal("1.2.0", loaded.SkippedVersion);
         }
         finally
         {
@@ -193,7 +194,7 @@ public class AutoUpdaterTests
         var updater = new UpdateManager();
         var update = new UpdateInfo
         {
-            Version = "0.1.1", // Same as current version
+            Version = "1.1.1", // Same as current version
             DownloadUrl = "https://example.com/CutCraft.zip"
         };
 
@@ -211,7 +212,7 @@ public class AutoUpdaterTests
         var updater = new UpdateManager();
         var update = new UpdateInfo
         {
-            Version = "0.2.0",
+            Version = "1.2.0",
             DownloadUrl = "http://example.com/CutCraft-Update.zip" // Insecure HTTP
         };
 
@@ -238,7 +239,7 @@ public class AutoUpdaterTests
             var updater = new UpdateManager();
             var update = new UpdateInfo
             {
-                Version = "0.2.0",
+                Version = "1.2.0",
                 DownloadUrl = sourceFile,
                 Sha256Checksum = "0000000000000000000000000000000000000000000000000000000000000000" // Wrong checksum
             };
@@ -263,7 +264,7 @@ public class AutoUpdaterTests
     public async Task DownloadUpdateAsync_WithValidChecksum_SucceedsAndReportsProgress()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var sourceFile = Path.Combine(tempDir, "CutCraft-v0.2.0-win-x64.zip");
+        var sourceFile = Path.Combine(tempDir, "CutCraft-v1.2.0-win-x64.zip");
         Directory.CreateDirectory(tempDir);
 
         try
@@ -276,7 +277,7 @@ public class AutoUpdaterTests
             var updater = new UpdateManager();
             var update = new UpdateInfo
             {
-                Version = "0.2.0",
+                Version = "1.2.0",
                 DownloadUrl = sourceFile,
                 FileSizeBytes = content.Length,
                 Sha256Checksum = expectedChecksum
@@ -304,7 +305,7 @@ public class AutoUpdaterTests
     public async Task DownloadUpdateAsync_PreventsRepeatedDownload_WhenPackageAlreadyCached()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        var sourceFile = Path.Combine(tempDir, "CutCraft-v0.2.0-win-x64.zip");
+        var sourceFile = Path.Combine(tempDir, "CutCraft-v1.2.0-win-x64.zip");
         Directory.CreateDirectory(tempDir);
 
         try
@@ -317,7 +318,7 @@ public class AutoUpdaterTests
             var updater = new UpdateManager();
             var update = new UpdateInfo
             {
-                Version = "0.2.0",
+                Version = "1.2.0",
                 DownloadUrl = sourceFile,
                 FileSizeBytes = content.Length,
                 Sha256Checksum = expectedChecksum

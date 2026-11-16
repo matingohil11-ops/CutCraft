@@ -8,8 +8,8 @@ namespace CutCraft.Core.Updates;
 
 public class UpdateManager
 {
-    public const string CurrentVersionString = "0.1.1";
-    public static readonly Version CurrentVersion = new(0, 1, 1);
+    public const string CurrentVersionString = "1.1.1";
+    public static readonly Version CurrentVersion = new(1, 1, 1);
 
     public string RemoteManifestUrl { get; set; } = "https://raw.githubusercontent.com/matingohil11-ops/CutCraft/main/update-manifest.json";
     public string LocalFallbackManifestPath { get; set; } = "update-manifest.json";
@@ -21,7 +21,7 @@ public class UpdateManager
         _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
         {
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "CutCraft-AutoUpdater/0.1.1");
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "CutCraft-AutoUpdater/1.1.1");
         }
     }
 
@@ -193,7 +193,7 @@ public class UpdateManager
     }
 
     /// <summary>
-    /// Compares two semver / version strings correctly (e.g. "0.2" > "0.1.1", "0.10.0" > "0.9.0").
+    /// Compares two semver / version strings correctly (e.g. "1.2.0" > "1.1.1", "0.10.0" > "0.9.0").
     /// </summary>
     public static bool IsVersionGreater(string candidateVersion, string baseVersion)
     {

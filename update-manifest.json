@@ -1,10 +1,10 @@
 {
-  "version": "1.1.0",
-  "name": "CutCraft v1.1.0 (Auto-Updater & Startup Update Check Release)",
-  "releaseDate": "2026-11-15T18:15:00Z",
-  "releaseNotes": "CutCraft v1.1.0 Release Update:\n- Robust auto-updater with SHA-256 checksum verification and secure HTTPS downloading\n- Automatically check for updates on startup setting (Enabled / Disabled) in Settings menu\n- Interactive startup notification with Download and Install, Remind Me Later, and Skip This Version\n- Manual update check in Settings and Help menu displaying installed and latest version\n- Full keyboard navigation and NVDA screen reader live announcements with readable progress updates\n- Process-safe extraction and automatic restart after update",
-  "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.1.0/CutCraft-v1.1.0-win-x64.zip",
+  "version": "1.1.1",
+  "name": "CutCraft v1.1.1 (Subtitles, Captions, Title Cards & Ripple Edit Release)",
+  "releaseDate": "2026-11-16T16:20:00Z",
+  "releaseNotes": "CutCraft v1.1.1 Release Update:\n- Subtitles & Captions engine: dual SubRip (.srt) and WebVTT (.vtt) support with split, merge, and time shifting\n- Automated Subtitle QA validation: reading speed warnings, cue overlap checks, and invalid timestamp detection\n- Stylized Animated Title Cards: 6 templates (Lower Third, Cinematic Header, Bold Headline, Minimalist, Neon Glow, Vintage Retro) with Fade, Slide, and Zoom motion typography\n- Timeline Ripple Edit & Gap Closing engine: Ripple Delete (Shift+Delete), In/Out ripple trimming, Close Gap (Alt+G), Auto-Pack all clips, and non-destructive Ripple Insert\n- Accessible screen reader announcements and audio cues for all subtitle, overlay, and ripple editing operations\n- Comprehensive auto-updater with SHA-256 verification and seamless background update checks",
+  "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.1.1/CutCraft-v1.1.1-win-x64.zip",
   "mandatory": false,
-  "fileSizeBytes": 90289206,
-  "sha256Checksum": "C7F580E65665A866DB87A3FB73E82FDAF0F9B4FC3922618B8C8855BFF6DBEEB3"
+  "fileSizeBytes": 980378,
+  "sha256Checksum": "63864789CAA73EEF9C8DAAE589772DDF8BE1A9585CDF0E09F88E6716C59671A4"
 }
