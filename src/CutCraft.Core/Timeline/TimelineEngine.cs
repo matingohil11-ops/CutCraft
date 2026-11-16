@@ -2,6 +2,11 @@ using CutCraft.Core.Models;
 
 namespace CutCraft.Core.Timeline;
 
+public record TimelineGap(TimeSpan Start, TimeSpan End)
+{
+    public TimeSpan Duration => End > Start ? End - Start : TimeSpan.Zero;
+}
+
 public class TimelineEngine
 {
     public double SnapThresholdSeconds { get; set; } = 0.20;
@@ -125,6 +130,52 @@ public class TimelineEngine
                 {
                     clip.TimelineStart = TimeSpan.Zero;
                 }
+            }
+        }
+    }
+
+    public List<TimelineGap> FindGaps(Track track)
+    {
+        var gaps = new List<TimelineGap>();
+        var ordered = track.Clips.OrderBy(c => c.TimelineStart).ToList();
+        if (ordered.Count == 0) return gaps;
+
+        // Check if there is a gap before the first clip
+        if (ordered[0].TimelineStart > TimeSpan.FromMilliseconds(10))
+        {
+            gaps.Add(new TimelineGap(TimeSpan.Zero, ordered[0].TimelineStart));
+        }
+
+        // Check gaps between adjacent clips
+        for (int i = 0; i < ordered.Count - 1; i++)
+        {
+            var currentEnd = ordered[i].TimelineEnd;
+            var nextStart = ordered[i + 1].TimelineStart;
+
+            if (nextStart - currentEnd > TimeSpan.FromMilliseconds(10))
+            {
+                gaps.Add(new TimelineGap(currentEnd, nextStart));
+            }
+        }
+
+        return gaps;
+    }
+
+    public TimelineGap? FindGapAt(Track track, TimeSpan time)
+    {
+        var gaps = FindGaps(track);
+        return gaps.FirstOrDefault(g => time >= g.Start && time < g.End);
+    }
+
+    public void CloseGap(Track track, TimelineGap gap)
+    {
+        var delta = -gap.Duration;
+        foreach (var clip in track.Clips)
+        {
+            if (clip.TimelineStart >= gap.End - TimeSpan.FromMilliseconds(5))
+            {
+                clip.TimelineStart += delta;
+                if (clip.TimelineStart < TimeSpan.Zero) clip.TimelineStart = TimeSpan.Zero;
             }
         }
     }

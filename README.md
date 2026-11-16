@@ -106,6 +106,14 @@ CutCraft/
   - Motion typography animations: smooth Fade, Slide Up, Slide Left, and Zoom In with dynamic FFmpeg `drawtext` alpha & motion expressions
   - Full Undo/Redo command architecture (`CaptionCommands` & `TextOverlayCommands`) integrated with screen reader accessibility
   - Real-time preview player burn-in with live animated transforms and typography rendering
+- [x] **Phase 13: Ripple Edit & Gap Closing Engine**
+  - Timeline Ripple Edit Mode toggle (`Alt+R`) with toolbar state indicator
+  - Ripple Delete (`Shift+Delete`): deletes clip and automatically pulls subsequent clips back to eliminate empty timeline holes
+  - Ripple In/Out Trimming: trims clip boundary and shifts all following clips synchronously
+  - Timeline Gap Analyzer: detects blank gaps between clips and before the opening clip
+  - Close Gap at Playhead (`Alt+G`): single-action gap elimination
+  - Auto-Pack (Close All Gaps): condenses all clips on track consecutively with zero blank frames
+  - Ripple Insert: inserts media at any playhead position, cleanly bisecting existing footage and rippling following clips without overwrite
 
 ---
 
@@ -124,6 +132,9 @@ CutCraft/
 | `Alt+Left` | Select Previous Clip | "Selected clip {i} of {n}: {name}" |
 | `Alt+Right` | Select Next Clip | "Selected clip {i} of {n}: {name}" |
 | `Delete` | Remove Selected Clip | "Removed clip {name}" |
+| `Alt+R` | Toggle Ripple Edit Mode | "Timeline ripple edit mode enabled/disabled" |
+| `Shift+Delete` | Ripple Delete Selected Clip | "Ripple deleted clip {name}, closing gap" |
+| `Alt+G` | Close Gap at Playhead | "Closed gap of {duration}s at {time}" |
 | `Ctrl+Z` | Undo | Announces undone command + Undo Audio Cue |
 | `Ctrl+Y` | Redo | Announces redone command + Redo Audio Cue |
 | `Left / Right` | Step 1 Frame Backward/Forward | Announces current timecode & active clip |

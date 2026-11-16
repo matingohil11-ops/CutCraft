@@ -35,6 +35,9 @@
         <KeyBinding Key="M" Modifiers="Alt" Command="{Binding JumpToNextMarkerCommand}" />
         <KeyBinding Key="N" Command="{Binding ToggleSnappingCommand}" />
         <KeyBinding Key="R" Modifiers="Ctrl" Command="{Binding RotateSelectedClipCommand}" />
+        <KeyBinding Key="R" Modifiers="Alt" Command="{Binding ToggleRippleEditModeCommand}" />
+        <KeyBinding Key="Delete" Modifiers="Shift" Command="{Binding RippleDeleteSelectedClipCommand}" />
+        <KeyBinding Key="G" Modifiers="Alt" Command="{Binding CloseGapAtPlayheadCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -66,6 +69,10 @@
                             <MenuItem Header="Set _In Point" InputGestureText="I" Command="{Binding TrimStartAtPlayheadCommand}" />
                             <MenuItem Header="Set _Out Point" InputGestureText="O" Command="{Binding TrimEndAtPlayheadCommand}" />
                             <MenuItem Header="_Delete Clip" InputGestureText="Del" Command="{Binding DeleteSelectedClipCommand}" />
+                            <MenuItem Header="_Ripple Delete Clip" InputGestureText="Shift+Del" Command="{Binding RippleDeleteSelectedClipCommand}" />
+                            <MenuItem Header="Toggle _Ripple Edit Mode" InputGestureText="Alt+R" Command="{Binding ToggleRippleEditModeCommand}" />
+                            <MenuItem Header="_Close Gap at Playhead" InputGestureText="Alt+G" Command="{Binding CloseGapAtPlayheadCommand}" />
+                            <MenuItem Header="Close _All Gaps on Track" Command="{Binding CloseAllGapsOnSelectedTrackCommand}" />
                             <Separator />
                             <MenuItem Header="_Add Marker at Playhead" InputGestureText="M" Command="{Binding AddMarkerAtPlayheadCommand}" />
                             <MenuItem Header="_Next Marker" InputGestureText="Alt+M" Command="{Binding JumpToNextMarkerCommand}" />
@@ -657,6 +664,22 @@
                                 Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
                                 ToolTip="Toggle magnetic snapping to cuts and markers (Shortcut N)"
                                 AutomationProperties.Name="Toggle magnetic snapping" />
+                        <Button Content="{Binding RippleModeButtonText}" Command="{Binding ToggleRippleEditModeCommand}" Margin="4,0" Padding="8,3"
+                                Background="#2A3B4C" Foreground="#00BCF9" FontWeight="SemiBold" BorderBrush="{StaticResource BorderDark}"
+                                ToolTip="Toggle Ripple Edit Mode (Alt+R). When ON, deletes and trims ripple subsequent clips automatically"
+                                AutomationProperties.Name="Toggle Ripple Edit Mode" />
+                        <Button Content="🌊 Ripple Del" Command="{Binding RippleDeleteSelectedClipCommand}" Margin="4,0" Padding="8,3"
+                                Background="#3A2A2D" Foreground="#FF9999" BorderBrush="{StaticResource BorderDark}"
+                                ToolTip="Ripple delete selected clip and close gap (Shift+Delete)"
+                                AutomationProperties.Name="Ripple Delete Selected Clip" />
+                        <Button Content="🧲 Close Gap" Command="{Binding CloseGapAtPlayheadCommand}" Margin="4,0" Padding="8,3"
+                                Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                ToolTip="Close blank gap at playhead (Alt+G)"
+                                AutomationProperties.Name="Close Blank Gap at Playhead" />
+                        <Button Content="Auto-Pack" Command="{Binding CloseAllGapsOnSelectedTrackCommand}" Margin="4,0" Padding="8,3"
+                                Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}"
+                                ToolTip="Close all gaps on track sequentially"
+                                AutomationProperties.Name="Close all gaps on track" />
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">

@@ -340,6 +340,17 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSnappingEnabled = true;
 
+    [ObservableProperty]
+    private bool _isRippleEditEnabled = false;
+
+    [ObservableProperty]
+    private string _rippleModeButtonText = "🌊 Ripple: OFF";
+
+    partial void OnIsRippleEditEnabledChanged(bool value)
+    {
+        RippleModeButtonText = value ? "🌊 Ripple: ON" : "🌊 Ripple: OFF";
+    }
+
     public double PlayheadSeconds
     {
         get => PlayheadPosition.TotalSeconds;
@@ -1159,7 +1170,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void TrimStartAtPlayhead()
     {
-        if (SelectedClip == null)
+        if (SelectedClip == null || SelectedTrack == null)
         {
             Notifier.Announce("No clip selected to trim.");
             return;
@@ -1174,7 +1185,10 @@ public partial class MainViewModel : ObservableObject
         var relativeSeconds = (PlayheadPosition - SelectedClip.TimelineStart).TotalSeconds * SelectedClip.Speed;
         var newInPoint = SelectedClip.InPoint + TimeSpan.FromSeconds(relativeSeconds);
 
-        var cmd = new TrimClipCommand(SelectedClip, TrimEdge.Start, newInPoint);
+        ICommand cmd = IsRippleEditEnabled
+            ? new RippleTrimClipCommand(SelectedTrack, SelectedClip, TrimEdge.Start, newInPoint)
+            : new TrimClipCommand(SelectedClip, TrimEdge.Start, newInPoint);
+
         CommandManager.Execute(cmd);
         _audioCues.PlayCutCue();
         UpdatePlaybackState(IsPlaying);
@@ -1183,7 +1197,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void TrimEndAtPlayhead()
     {
-        if (SelectedClip == null)
+        if (SelectedClip == null || SelectedTrack == null)
         {
             Notifier.Announce("No clip selected to trim.");
             return;
@@ -1198,7 +1212,10 @@ public partial class MainViewModel : ObservableObject
         var relativeSeconds = (PlayheadPosition - SelectedClip.TimelineStart).TotalSeconds * SelectedClip.Speed;
         var newOutPoint = SelectedClip.InPoint + TimeSpan.FromSeconds(relativeSeconds);
 
-        var cmd = new TrimClipCommand(SelectedClip, TrimEdge.End, newOutPoint);
+        ICommand cmd = IsRippleEditEnabled
+            ? new RippleTrimClipCommand(SelectedTrack, SelectedClip, TrimEdge.End, newOutPoint)
+            : new TrimClipCommand(SelectedClip, TrimEdge.End, newOutPoint);
+
         CommandManager.Execute(cmd);
         _audioCues.PlayCutCue();
         UpdatePlaybackState(IsPlaying);
@@ -1213,10 +1230,68 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        var cmd = new RemoveClipCommand(SelectedTrack, SelectedClip);
+        ICommand cmd = IsRippleEditEnabled
+            ? new RippleDeleteClipCommand(SelectedTrack, SelectedClip)
+            : new RemoveClipCommand(SelectedTrack, SelectedClip);
+
         CommandManager.Execute(cmd);
         SelectedClip = null;
+        _audioCues.PlayCutCue();
         UpdatePlaybackState(IsPlaying);
+    }
+
+    [RelayCommand]
+    public void RippleDeleteSelectedClip()
+    {
+        if (SelectedClip == null || SelectedTrack == null)
+        {
+            Notifier.Announce("No clip selected to ripple delete.");
+            return;
+        }
+
+        var cmd = new RippleDeleteClipCommand(SelectedTrack, SelectedClip);
+        CommandManager.Execute(cmd);
+        SelectedClip = null;
+        _audioCues.PlayCutCue();
+        UpdatePlaybackState(IsPlaying);
+    }
+
+    [RelayCommand]
+    public void CloseGapAtPlayhead()
+    {
+        var track = SelectedTrack ?? CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Video);
+        if (track == null) return;
+
+        var gap = _timelineEngine.FindGapAt(track, PlayheadPosition);
+        if (gap == null)
+        {
+            Notifier.Announce("No blank gap found at current playhead position.");
+            return;
+        }
+
+        var cmd = new CloseGapCommand(track, gap);
+        CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
+        UpdatePlaybackState(IsPlaying);
+    }
+
+    [RelayCommand]
+    public void CloseAllGapsOnSelectedTrack()
+    {
+        var track = SelectedTrack ?? CurrentProject.Tracks.FirstOrDefault(t => t.Type == TrackType.Video);
+        if (track == null) return;
+
+        var cmd = new CloseAllGapsCommand(track);
+        CommandManager.Execute(cmd);
+        _audioCues.PlayCutCue();
+        UpdatePlaybackState(IsPlaying);
+    }
+
+    [RelayCommand]
+    public void ToggleRippleEditMode()
+    {
+        IsRippleEditEnabled = !IsRippleEditEnabled;
+        Notifier.Announce($"Timeline ripple edit mode {(IsRippleEditEnabled ? "enabled" : "disabled")}");
     }
 
     [RelayCommand]
