@@ -148,6 +148,7 @@ CutCraft/
 
 - [@matingohil11-ops](https://github.com/matingohil11-ops)
 - [@swarup-developer](https://github.com/swarup-developer)
+- [@ashu-choudhury](https://github.com/ashu-choudhury)
 
-See [CONTRIBUTORS.md](file:///C:/Users/admin/.gemini/antigravity/scratch/CutCraft/CONTRIBUTORS.md) for the contributor list.
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the contributor list.
 
