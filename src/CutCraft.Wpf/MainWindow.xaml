@@ -9,6 +9,9 @@
         mc:Ignorable="d"
         Title="CutCraft - C# Video Editor" Height="820" Width="1300"
         Background="{StaticResource BackgroundDark}"
+        AllowDrop="True"
+        Drop="Window_Drop"
+        DragOver="Window_DragOver"
         AutomationProperties.Name="CutCraft Video Editor Main Window">
 
     <Window.DataContext>
@@ -531,7 +534,7 @@
 
                     <!-- Preview Viewport Screen -->
                     <Border Grid.Row="0" Background="#0A0A0A" Margin="8" CornerRadius="3" ClipToBounds="True">
-                        <Grid x:Name="PreviewContainer">
+                        <Grid x:Name="PreviewContainer" AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
                             <!-- MediaElement Video Player -->
                             <MediaElement x:Name="VideoPreviewElement"
                                           LoadedBehavior="Manual"
@@ -540,6 +543,13 @@
                                           Stretch="Uniform"
                                           HorizontalAlignment="Center"
                                           VerticalAlignment="Center" />
+
+                            <!-- Image Preview for Still Image Assets -->
+                            <Image x:Name="ImagePreviewElement"
+                                   Stretch="Uniform"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Visibility="Collapsed" />
 
                             <!-- Placeholder when no video clip is active -->
                             <Grid Visibility="{Binding HasActiveVideo, Converter={StaticResource InverseBooleanToVisibilityConverter}}">

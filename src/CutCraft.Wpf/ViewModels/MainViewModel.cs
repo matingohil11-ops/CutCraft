@@ -14,6 +14,7 @@ using CutCraft.Core.Timeline;
 using CutCraft.Core.Updates;
 using CutCraft.Media.Analysis;
 using CutCraft.Media.Export;
+using CutCraft.Media.Proxy;
 
 namespace CutCraft.Wpf.ViewModels;
 
@@ -23,7 +24,10 @@ public partial class MainViewModel : ObservableObject
     private readonly IMediaAnalyzer _mediaAnalyzer = new FFprobeMediaAnalyzer();
     private readonly IMediaExporter _mediaExporter = new FFmpegProcessExporter();
     private readonly IAudioCueService _audioCues = new SystemAudioCueService();
+    private readonly IProxyMediaService _proxyService = new FFmpegProxyMediaService();
     private readonly UpdateManager _updateManager = new();
+
+    public IProxyMediaService ProxyMediaService => _proxyService;
 
     private readonly DispatcherTimer _playbackTimer;
     private readonly Stopwatch _playbackStopwatch = new();
@@ -468,7 +472,7 @@ public partial class MainViewModel : ObservableObject
         if (videoClip != null && !string.IsNullOrEmpty(videoClip.AssetPath))
         {
             HasActiveVideo = true;
-            ActiveVideoPath = videoClip.AssetPath;
+            ActiveVideoPath = _proxyService.GetActiveAssetPath(new MediaAsset { FilePath = videoClip.AssetPath, Id = videoClip.AssetId, Type = videoClip.Type });
             var relativeSec = (PlayheadPosition - videoClip.TimelineStart).TotalSeconds * videoClip.Speed;
             ActiveVideoPosition = videoClip.InPoint + TimeSpan.FromSeconds(relativeSec);
         }
@@ -611,6 +615,32 @@ public partial class MainViewModel : ObservableObject
         }
 
         PreviewStateChanged?.Invoke(ActiveVideoPath, ActiveVideoPosition, isPlaying);
+    }
+
+    public async Task<string?> GenerateProxyForActiveClipAsync()
+    {
+        if (string.IsNullOrEmpty(ActiveVideoPath)) return null;
+        var asset = CurrentProject.MediaLibrary.FirstOrDefault(a => a.FilePath == ActiveVideoPath)
+                    ?? new MediaAsset { FilePath = ActiveVideoPath, Name = Path.GetFileName(ActiveVideoPath), Type = AssetType.Video };
+
+        Notifier.Announce($"Generating preview proxy for {asset.Name}...");
+        PreviewOverlayMessage = $"Generating preview proxy for {asset.Name}...";
+        try
+        {
+            var proxyPath = await _proxyService.GenerateProxyAsync(asset);
+            if (File.Exists(proxyPath) && proxyPath != asset.FilePath)
+            {
+                Notifier.Announce($"Preview proxy ready for {asset.Name}");
+                ActiveVideoPath = proxyPath;
+                UpdatePlaybackState(IsPlaying);
+                return proxyPath;
+            }
+        }
+        catch (Exception ex)
+        {
+            Notifier.Announce($"Proxy generation failed: {ex.Message}");
+        }
+        return null;
     }
 
     [RelayCommand]

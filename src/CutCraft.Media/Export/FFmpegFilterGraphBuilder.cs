@@ -63,6 +63,10 @@ public class FFmpegFilterGraphBuilder
 
                 // Video filters
                 var vFilters = new List<string>();
+                if (clip.Type == AssetType.Image)
+                {
+                    vFilters.Add("loop=loop=-1:size=1:start=0");
+                }
                 vFilters.Add($"trim=start={inSec.ToString("F3", CultureInfo.InvariantCulture)}:end={outSec.ToString("F3", CultureInfo.InvariantCulture)}");
                 vFilters.Add($"setpts={((1.0 / speed)).ToString("F4", CultureInfo.InvariantCulture)}*(PTS-STARTPTS)");
                 vFilters.Add($"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2");
@@ -181,6 +185,10 @@ public class FFmpegFilterGraphBuilder
                 double tEnd = clip.TimelineEnd.TotalSeconds;
 
                 var ovFilters = new List<string>();
+                if (clip.Type == AssetType.Image)
+                {
+                    ovFilters.Add("loop=loop=-1:size=1:start=0");
+                }
                 ovFilters.Add($"scale={ovW}:{ovH}:force_original_aspect_ratio=decrease");
                 if (clip.Opacity < 0.99)
                 {

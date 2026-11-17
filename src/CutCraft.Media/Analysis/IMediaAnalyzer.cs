@@ -123,13 +123,7 @@ public class FFprobeMediaAnalyzer : IMediaAnalyzer
 
     private static AssetType DetectTypeByExtension(string filePath)
     {
-        var ext = Path.GetExtension(filePath)?.ToLowerInvariant() ?? "";
-        return ext switch
-        {
-            ".mp3" or ".wav" or ".aac" or ".m4a" or ".flac" or ".ogg" or ".wma" => AssetType.Audio,
-            ".jpg" or ".jpeg" or ".png" or ".bmp" or ".webp" or ".gif" => AssetType.Image,
-            _ => AssetType.Video
-        };
+        return MediaFormats.DetectAssetType(filePath);
     }
 
     private static void TryReadMediaMetadataFallback(string filePath, MediaAsset asset)
@@ -137,17 +131,32 @@ public class FFprobeMediaAnalyzer : IMediaAnalyzer
         try
         {
             var ext = Path.GetExtension(filePath)?.ToLowerInvariant() ?? "";
-            if (ext is ".mp4" or ".mov" or ".m4v" or ".m4a")
+            if (ext is ".mp4" or ".mov" or ".m4v" or ".m4a" or ".3gp" or ".3g2" or ".f4v")
             {
                 ReadMp4Metadata(filePath, asset);
             }
-            else if (ext is ".wav")
+            else if (ext is ".wav" or ".avi" or ".aiff" or ".aif")
             {
                 ReadWavMetadata(filePath, asset);
             }
             else if (asset.Type == AssetType.Image)
             {
                 asset.Duration = TimeSpan.FromSeconds(5);
+            }
+
+            // Universal NAudio MediaFoundation fallback for all other container formats
+            if (asset.Duration == TimeSpan.Zero && asset.Type != AssetType.Image)
+            {
+                try
+                {
+                    using var mfReader = new NAudio.Wave.MediaFoundationReader(filePath);
+                    if (mfReader.TotalTime > TimeSpan.Zero)
+                    {
+                        asset.Duration = mfReader.TotalTime;
+                        asset.HasAudio = true;
+                    }
+                }
+                catch { }
             }
         }
         catch

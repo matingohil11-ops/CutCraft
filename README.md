@@ -114,6 +114,12 @@ CutCraft/
   - Close Gap at Playhead (`Alt+G`): single-action gap elimination
   - Auto-Pack (Close All Gaps): condenses all clips on track consecutively with zero blank frames
   - Ripple Insert: inserts media at any playhead position, cleanly bisecting existing footage and rippling following clips without overwrite
+- [x] **Phase 14: Universal Media & Video Player Extension Engine**
+  - Comprehensive format support across 100+ containers, codecs, and image formats (`.mp4`, `.mkv`, `.mov`, `.avi`, `.wmv`, `.flv`, `.webm`, `.ts`, `.mts`, `.m2ts`, `.3gp`, `.ogv`, `.vob`, `.mpg`, `.mpeg`, `.m4v`, `.mxf`, `.rm`, `.rmvb`, `.asf`, `.h264`, `.h265`, `.hevc`, `.av1`, `.divx`, `.mp3`, `.wav`, `.aac`, `.m4a`, `.flac`, `.ogg`, `.opus`, `.wma`, `.aiff`, `.mka`, `.ape`, `.ac3`, `.dts`, `.amr`, `.mid`, `.png`, `.jpg`, `.jpeg`, `.bmp`, `.webp`, `.gif`, `.tiff`, `.ico`, `.heic`, `.avif`, `.svg`)
+  - Full Drag & Drop integration onto the preview player viewport and main window with instant timeline insertion
+  - Dedicated still image preview renderer (`ImagePreviewElement`) seamlessly synced with the timeline playhead
+  - Automated transparent H.264 proxy playback fallback (`FFmpegProxyMediaService`) for non-native video codecs
+  - Multi-category OpenFileDialog filters for video, audio, and graphics assets
 
 ---
 

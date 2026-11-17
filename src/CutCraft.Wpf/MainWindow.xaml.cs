@@ -57,11 +57,26 @@ public partial class MainWindow : Window
             _pendingSeekPosition = null;
         };
 
-        VideoPreviewElement.MediaFailed += (s, args) =>
+        VideoPreviewElement.MediaFailed += async (s, args) =>
         {
             _mediaOpened = false;
             _isMediaElementPlaying = false;
             var msg = args.ErrorException?.Message ?? "Unsupported video format or codec";
+
+            // If format is unsupported natively by MediaElement, attempt transparent ultrafast proxy generation
+            try
+            {
+                Vm.Notifier.Announce("Media format requires proxy rendering. Generating preview proxy...");
+                var proxyPath = await Vm.GenerateProxyForActiveClipAsync();
+                if (!string.IsNullOrEmpty(proxyPath) && File.Exists(proxyPath))
+                {
+                    _currentMediaSource = proxyPath;
+                    VideoPreviewElement.Source = new Uri(proxyPath, UriKind.Absolute);
+                    return;
+                }
+            }
+            catch { }
+
             Vm.Notifier.Announce($"Media preview notice: {msg}");
             Vm.PreviewOverlayMessage = $"Playback notice: {msg}";
             Vm.HasActiveVideo = false;
@@ -81,6 +96,9 @@ public partial class MainWindow : Window
                 {
                     VideoPreviewElement.Stop();
                     VideoPreviewElement.Source = null;
+                    ImagePreviewElement.Source = null;
+                    ImagePreviewElement.Visibility = Visibility.Collapsed;
+                    VideoPreviewElement.Visibility = Visibility.Visible;
                 }
                 catch { }
                 _currentMediaSource = null;
@@ -89,6 +107,42 @@ public partial class MainWindow : Window
             }
             return;
         }
+
+        // Handle still image extensions in preview viewport
+        if (MediaFormats.IsImageExtension(sourcePath))
+        {
+            try
+            {
+                if (_currentMediaSource != sourcePath)
+                {
+                    _currentMediaSource = sourcePath;
+                    VideoPreviewElement.Stop();
+                    VideoPreviewElement.Source = null;
+
+                    var bitmap = new System.Windows.Media.Imaging.BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.UriSource = new Uri(sourcePath, UriKind.Absolute);
+                    bitmap.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+                    ImagePreviewElement.Source = bitmap;
+                    Vm.SyncImportedMediaDimensions(TimeSpan.FromSeconds(5), bitmap.PixelWidth, bitmap.PixelHeight);
+                }
+
+                ImagePreviewElement.Visibility = Visibility.Visible;
+                VideoPreviewElement.Visibility = Visibility.Collapsed;
+                _mediaOpened = true;
+            }
+            catch (Exception ex)
+            {
+                Vm.PreviewOverlayMessage = $"Failed to preview image: {ex.Message}";
+            }
+            return;
+        }
+
+        // Ensure video element is visible for audio/video media
+        ImagePreviewElement.Visibility = Visibility.Collapsed;
+        VideoPreviewElement.Visibility = Visibility.Visible;
 
         // Apply clip volume and mute state to preview player
         var activeClip = Vm.CurrentProject.Tracks
@@ -209,8 +263,8 @@ public partial class MainWindow : Window
     {
         var ofd = new OpenFileDialog
         {
-            Filter = "Media Files (*.mp4;*.mkv;*.mov;*.avi;*.mp3;*.wav;*.png;*.jpg)|*.mp4;*.mkv;*.mov;*.avi;*.mp3;*.wav;*.png;*.jpg|All files (*.*)|*.*",
-            Title = "Import Media Assets",
+            Filter = MediaFormats.MediaImportFilter,
+            Title = "Import Media Assets (All Formats Supported)",
             Multiselect = true
         };
 
@@ -257,7 +311,7 @@ public partial class MainWindow : Window
     {
         var ofd = new OpenFileDialog
         {
-            Filter = "Audio & Music Files (*.mp3;*.wav;*.m4a;*.aac;*.wma;*.flac;*.ogg)|*.mp3;*.wav;*.m4a;*.aac;*.wma;*.flac;*.ogg|All files (*.*)|*.*",
+            Filter = MediaFormats.AudioImportFilter,
             Title = $"Add Music at Current Point ({Vm.CurrentTimecode})",
             Multiselect = true
         };
@@ -267,6 +321,52 @@ public partial class MainWindow : Window
             foreach (var file in ofd.FileNames)
             {
                 await Vm.AddMusicAtPlayheadAsync(file);
+            }
+        }
+    }
+
+    private void Window_DragOver(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            e.Effects = DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.None;
+        }
+    }
+
+    private async void Window_Drop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            var files = (string[])e.Data.GetData(DataFormats.FileDrop);
+            if (files != null && files.Length > 0)
+            {
+                foreach (var file in files)
+                {
+                    if (MediaFormats.IsSupportedMedia(file))
+                    {
+                        if (MediaFormats.IsAudioExtension(file) && (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt)
+                        {
+                            await Vm.AddMusicAtPlayheadAsync(file);
+                        }
+                        else
+                        {
+                            await Vm.ImportMediaAsync(file);
+                        }
+                    }
+                    else if (file.EndsWith(".srt", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".vtt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Vm.ImportSubtitlesFile(file);
+                    }
+                    else if (file.EndsWith(".cutcraft", StringComparison.OrdinalIgnoreCase) || file.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Vm.OpenProject(file);
+                    }
+                }
             }
         }
     }
