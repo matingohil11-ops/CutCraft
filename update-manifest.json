@@ -1,10 +1,10 @@
 {
-  "version": "1.1.1",
-  "name": "CutCraft v1.1.1 (Subtitles, Captions, Title Cards & Ripple Edit Release)",
-  "releaseDate": "2026-11-16T16:20:00Z",
-  "releaseNotes": "CutCraft v1.1.1 Release Update:\n- Subtitles & Captions engine: dual SubRip (.srt) and WebVTT (.vtt) support with split, merge, and time shifting\n- Automated Subtitle QA validation: reading speed warnings, cue overlap checks, and invalid timestamp detection\n- Stylized Animated Title Cards: 6 templates (Lower Third, Cinematic Header, Bold Headline, Minimalist, Neon Glow, Vintage Retro) with Fade, Slide, and Zoom motion typography\n- Timeline Ripple Edit & Gap Closing engine: Ripple Delete (Shift+Delete), In/Out ripple trimming, Close Gap (Alt+G), Auto-Pack all clips, and non-destructive Ripple Insert\n- Accessible screen reader announcements and audio cues for all subtitle, overlay, and ripple editing operations\n- Comprehensive auto-updater with SHA-256 verification and seamless background update checks",
-  "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.1.1/CutCraft-v1.1.1-win-x64.zip",
+  "version": "1.1.2",
+  "name": "CutCraft v1.1.2 (F11 Full Screen Support & View Controls Release)",
+  "releaseDate": "2026-11-18T18:30:00Z",
+  "releaseNotes": "CutCraft v1.1.2 Release Update:\n- Full Screen mode with F11 Function key: seamlessly toggle borderless full screen from anywhere in the application\n- Escape key exit support: instantly exit full screen or dismiss overlay dialogues\n- Top View menu and player transport toggle: easily enter or exit full screen from the menu bar or player controls\n- Preview viewport double-click support: double-click the preview area to toggle between windowed and full screen\n- Full screen screen reader announcements and status bar reporting\n- Comprehensive test coverage and updated update manifest",
+  "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.1.2/CutCraft-v1.1.2-win-x64.zip",
   "mandatory": false,
-  "fileSizeBytes": 980378,
-  "sha256Checksum": "63864789CAA73EEF9C8DAAE589772DDF8BE1A9585CDF0E09F88E6716C59671A4"
+  "fileSizeBytes": 989438,
+  "sha256Checksum": "7FEE1F67DFEB0A47CBC861B2ED39DB92967EF53B5151E6BC42A8FDE13AA401DA"
 }

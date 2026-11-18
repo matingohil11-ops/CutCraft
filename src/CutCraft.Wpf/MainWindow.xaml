@@ -41,6 +41,8 @@
         <KeyBinding Key="R" Modifiers="Alt" Command="{Binding ToggleRippleEditModeCommand}" />
         <KeyBinding Key="Delete" Modifiers="Shift" Command="{Binding RippleDeleteSelectedClipCommand}" />
         <KeyBinding Key="G" Modifiers="Alt" Command="{Binding CloseGapAtPlayheadCommand}" />
+        <KeyBinding Key="F11" Command="{Binding ToggleFullScreenCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding ExitFullScreenCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -82,6 +84,10 @@
                             <MenuItem Header="_Previous Marker" Command="{Binding JumpToPreviousMarkerCommand}" />
                             <MenuItem Header="Toggle Magnetic _Snapping" InputGestureText="N" Command="{Binding ToggleSnappingCommand}" />
                             <MenuItem Header="_Rotate Selected Clip 90°" InputGestureText="Ctrl+R" Command="{Binding RotateSelectedClipCommand}" />
+                        </MenuItem>
+                        <MenuItem Header="_View" AutomationProperties.Name="View Menu">
+                            <MenuItem Header="Toggle _Full Screen" InputGestureText="F11" Command="{Binding ToggleFullScreenCommand}"
+                                      AutomationProperties.Name="Toggle Full Screen Mode (F11)" />
                         </MenuItem>
                         <MenuItem Header="_Speed">
                             <MenuItem Header="0.25x Slow Motion" Command="{Binding ChangeSpeedCommand}" CommandParameter="{StaticResource SystemDouble025}" />
@@ -138,6 +144,10 @@
 
                     <!-- Quick Action Buttons -->
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="{Binding FullScreenButtonText}" Command="{Binding ToggleFullScreenCommand}" Margin="4,0" Padding="8,4"
+                                ToolTip="{Binding FullScreenButtonTooltip}"
+                                AutomationProperties.Name="Toggle Full Screen (F11)"
+                                Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
                         <Button Content="↩ Undo" Command="{Binding UndoCommand}" Margin="4,0" Padding="8,4"
                                 AutomationProperties.Name="Undo action (Ctrl+Z)"
                                 Background="#333337" Foreground="{StaticResource TextLight}" BorderBrush="{StaticResource BorderDark}" />
@@ -534,7 +544,8 @@
 
                     <!-- Preview Viewport Screen -->
                     <Border Grid.Row="0" Background="#0A0A0A" Margin="8" CornerRadius="3" ClipToBounds="True">
-                        <Grid x:Name="PreviewContainer" AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver">
+                        <Grid x:Name="PreviewContainer" AllowDrop="True" Drop="Window_Drop" DragOver="Window_DragOver"
+                              MouseLeftButtonDown="PreviewContainer_MouseLeftButtonDown">
                             <!-- MediaElement Video Player -->
                             <MediaElement x:Name="VideoPreviewElement"
                                           LoadedBehavior="Manual"
@@ -634,6 +645,10 @@
                                         AutomationProperties.Name="Play or pause video (Space)" />
                                 <Button Content="⏭" Command="{Binding StepForwardCommand}" Width="36" Height="32" Margin="2,0"
                                         AutomationProperties.Name="Step forward one frame (Right Arrow)" />
+                                <Button Content="⛶" Command="{Binding ToggleFullScreenCommand}" Width="36" Height="32" Margin="4,0"
+                                        ToolTip="{Binding FullScreenButtonTooltip}"
+                                        AutomationProperties.Name="Toggle Full Screen (F11)"
+                                        Background="#333337" Foreground="{StaticResource TextLight}" />
                             </StackPanel>
 
                             <TextBlock DockPanel.Dock="Right" Text="{Binding CurrentTimecode}" VerticalAlignment="Center"

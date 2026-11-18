@@ -120,6 +120,13 @@ CutCraft/
   - Dedicated still image preview renderer (`ImagePreviewElement`) seamlessly synced with the timeline playhead
   - Automated transparent H.264 proxy playback fallback (`FFmpegProxyMediaService`) for non-native video codecs
   - Multi-category OpenFileDialog filters for video, audio, and graphics assets
+- [x] **Phase 15: Full-Screen Workspace & View Engine (v1.1.2)**
+  - Seamless borderless Full Screen mode toggling with Function key `F11` from anywhere in the application
+  - Quick-exit support with `Escape` or `F11`
+  - Top `View` menu with `Toggle Full Screen (F11)`
+  - Player transport control full-screen button (`⛶`) and header Quick Action button
+  - Preview viewport double-click gesture support to enter and exit full screen
+  - Live screen reader and status bar announcements for entering/exiting full screen mode
 
 ---
 
@@ -127,6 +134,8 @@ CutCraft/
 
 | Shortcut | Action | Screen Reader Announcement |
 |---|---|---|
+| `F11` | Toggle Full Screen Mode | "Full screen mode enabled/disabled" |
+| `Escape` | Exit Full Screen / Dismiss Overlay | "Full screen mode disabled" |
 | `Space` | Play / Pause Preview | Announces playback state |
 | `S` | Split Clip at Playhead | "Split clip {name} into two parts" + Cut Audio Cue |
 | `I` | Set Clip In-Point | "Trimmed Start of {name} to {time}" + Cut Audio Cue |

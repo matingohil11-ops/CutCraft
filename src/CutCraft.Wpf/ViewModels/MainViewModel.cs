@@ -84,6 +84,18 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _activeCaptionSpeaker = "";
 
+    // Full Screen mode properties and events
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FullScreenButtonText))]
+    [NotifyPropertyChangedFor(nameof(FullScreenButtonTooltip))]
+    private bool _isFullScreen;
+
+    public string FullScreenButtonText => IsFullScreen ? "🗗 Exit Full Screen" : "⛶ Full Screen";
+    public string FullScreenButtonTooltip => IsFullScreen ? "Exit Full Screen (F11 or Esc)" : "Enter Full Screen (F11)";
+
+    public event EventHandler? ToggleFullScreenRequested;
+    public event EventHandler? ExitFullScreenRequested;
+
     // Subtitle Editor form properties
     [ObservableProperty]
     private string _captionEditorText = "";
@@ -410,6 +422,18 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PlayheadSeconds));
 
         UpdatePlaybackState(true);
+    }
+
+    [RelayCommand]
+    public void ToggleFullScreen()
+    {
+        ToggleFullScreenRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    public void ExitFullScreen()
+    {
+        ExitFullScreenRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]

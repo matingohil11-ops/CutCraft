@@ -17,6 +17,11 @@ public partial class MainWindow : Window
     private TimeSpan? _pendingSeekPosition;
     private DateTime _lastSeekTime = DateTime.MinValue;
 
+    private bool _isFullScreen;
+    private WindowState _previousWindowState = WindowState.Normal;
+    private WindowStyle _previousWindowStyle = WindowStyle.SingleBorderWindow;
+    private ResizeMode _previousResizeMode = ResizeMode.CanResize;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -26,6 +31,8 @@ public partial class MainWindow : Window
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         Vm.PreviewStateChanged += OnPreviewStateChanged;
+        Vm.ToggleFullScreenRequested += (s, args) => ToggleFullScreen();
+        Vm.ExitFullScreenRequested += (s, args) => ExitFullScreen();
 
         VideoPreviewElement.MediaOpened += (s, args) =>
         {
@@ -385,21 +392,101 @@ public partial class MainWindow : Window
         }
     }
 
+    public void ToggleFullScreen()
+    {
+        if (!_isFullScreen)
+        {
+            EnterFullScreen();
+        }
+        else
+        {
+            ExitFullScreen();
+        }
+    }
+
+    public void EnterFullScreen()
+    {
+        if (_isFullScreen) return;
+
+        _previousWindowState = WindowState;
+        _previousWindowStyle = WindowStyle;
+        _previousResizeMode = ResizeMode;
+
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+        }
+        WindowState = WindowState.Maximized;
+
+        _isFullScreen = true;
+        Vm.IsFullScreen = true;
+        Vm.Notifier.Announce("Full screen mode enabled. Press F11 or Esc to exit full screen.");
+    }
+
+    public void ExitFullScreen()
+    {
+        if (!_isFullScreen) return;
+
+        WindowStyle = _previousWindowStyle;
+        ResizeMode = _previousResizeMode;
+        WindowState = _previousWindowState;
+
+        _isFullScreen = false;
+        Vm.IsFullScreen = false;
+        Vm.Notifier.Announce("Full screen mode disabled.");
+    }
+
+    private void PreviewContainer_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            ToggleFullScreen();
+            e.Handled = true;
+        }
+    }
+
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
+        // Global F11 Full Screen shortcut - works anywhere across the entire application
+        if (e.Key == Key.F11)
+        {
+            ToggleFullScreen();
+            e.Handled = true;
+            return;
+        }
+
         // Allow text fields to receive Space and typing keystrokes without interception
         if (e.OriginalSource is System.Windows.Controls.Primitives.TextBoxBase ||
             Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase)
         {
+            if (e.Key == Key.Escape && _isFullScreen)
+            {
+                ExitFullScreen();
+                e.Handled = true;
+                return;
+            }
             base.OnPreviewKeyDown(e);
             return;
         }
 
-        if (e.Key == Key.Escape && Vm.IsUpdateNotificationVisible)
+        if (e.Key == Key.Escape)
         {
-            Vm.CloseUpdateNotification();
-            e.Handled = true;
-            return;
+            if (Vm.IsUpdateNotificationVisible)
+            {
+                Vm.CloseUpdateNotification();
+                e.Handled = true;
+                return;
+            }
+
+            if (_isFullScreen)
+            {
+                ExitFullScreen();
+                e.Handled = true;
+                return;
+            }
         }
 
         switch (e.Key)
