@@ -192,21 +192,25 @@ public class TimelineEngine
 
     public static string FormatTimecode(TimeSpan time, double fps = 30.0)
     {
+        if (time < TimeSpan.Zero) time = TimeSpan.Zero;
+        var validFps = Math.Max(1.0, fps);
         var hours = (int)time.TotalHours;
         var minutes = time.Minutes;
         var seconds = time.Seconds;
-        var frames = (int)((time.TotalSeconds - Math.Truncate(time.TotalSeconds)) * fps);
+        var frames = (int)Math.Clamp((time.TotalSeconds - Math.Truncate(time.TotalSeconds)) * validFps, 0, Math.Max(0, (int)validFps - 1));
 
         return $"{hours:D2}:{minutes:D2}:{seconds:D2};{frames:D2}";
     }
 
     public static long TimeToFrames(TimeSpan time, double fps = 30.0)
     {
-        return (long)Math.Round(time.TotalSeconds * fps);
+        if (time < TimeSpan.Zero) return 0;
+        return (long)Math.Round(time.TotalSeconds * Math.Max(1.0, fps));
     }
 
     public static TimeSpan FramesToTime(long frames, double fps = 30.0)
     {
+        if (frames < 0) return TimeSpan.Zero;
         return TimeSpan.FromSeconds(frames / Math.Max(1.0, fps));
     }
 }

@@ -469,6 +469,7 @@ public static class SrtSubtitleService
 
     private static string FormatSrtTime(TimeSpan t)
     {
+        if (t < TimeSpan.Zero) t = TimeSpan.Zero;
         int hours = (int)t.TotalHours;
         int minutes = t.Minutes;
         int seconds = t.Seconds;
@@ -479,6 +480,7 @@ public static class SrtSubtitleService
 
     private static string FormatVttTime(TimeSpan t)
     {
+        if (t < TimeSpan.Zero) t = TimeSpan.Zero;
         int hours = (int)t.TotalHours;
         int minutes = t.Minutes;
         int seconds = t.Seconds;

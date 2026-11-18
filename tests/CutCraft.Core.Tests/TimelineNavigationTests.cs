@@ -139,4 +139,32 @@ public class TimelineNavigationTests
             if (File.Exists(tempFile)) File.Delete(tempFile);
         }
     }
+
+    [Theory]
+    [InlineData(0.0, 30.0, "00:00:00;00")]
+    [InlineData(1.5, 30.0, "00:00:01;15")]
+    [InlineData(65.0, 30.0, "00:01:05;00")]
+    [InlineData(3661.0, 30.0, "01:01:01;00")]
+    [InlineData(-10.0, 30.0, "00:00:00;00")]
+    public void FormatTimecode_FormatsAccurately(double totalSeconds, double fps, string expected)
+    {
+        var time = TimeSpan.FromSeconds(totalSeconds);
+        var result = TimelineEngine.FormatTimecode(time, fps);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public void TimeToFrames_And_FramesToTime_RoundTripAccurately()
+    {
+        var time = TimeSpan.FromSeconds(5.5);
+        var frames = TimelineEngine.TimeToFrames(time, 30.0);
+        Assert.Equal(165, frames);
+
+        var restoredTime = TimelineEngine.FramesToTime(frames, 30.0);
+        Assert.Equal(time.TotalSeconds, restoredTime.TotalSeconds, precision: 3);
+
+        // Negative handling
+        Assert.Equal(0, TimelineEngine.TimeToFrames(TimeSpan.FromSeconds(-5), 30.0));
+        Assert.Equal(TimeSpan.Zero, TimelineEngine.FramesToTime(-10, 30.0));
+    }
 }

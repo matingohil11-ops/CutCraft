@@ -5,6 +5,6 @@
   "releaseNotes": "CutCraft v1.1.2 Release Update:\n- Full Screen mode with F11 Function key: seamlessly toggle borderless full screen from anywhere in the application\n- Escape key exit support: instantly exit full screen or dismiss overlay dialogues\n- Top View menu and player transport toggle: easily enter or exit full screen from the menu bar or player controls\n- Preview viewport double-click support: double-click the preview area to toggle between windowed and full screen\n- Full screen screen reader announcements and status bar reporting\n- Comprehensive test coverage and updated update manifest",
   "downloadUrl": "https://github.com/matingohil11-ops/CutCraft/releases/download/v1.1.2/CutCraft-v1.1.2-win-x64.zip",
   "mandatory": false,
-  "fileSizeBytes": 989438,
-  "sha256Checksum": "7FEE1F67DFEB0A47CBC861B2ED39DB92967EF53B5151E6BC42A8FDE13AA401DA"
+  "fileSizeBytes": 989613,
+  "sha256Checksum": "5FFF882608C1324332D52015454D9A1082D62A6DE18445869ABDC9B7A57ED613"
 }

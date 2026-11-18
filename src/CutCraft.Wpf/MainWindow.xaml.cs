@@ -432,7 +432,15 @@ public partial class MainWindow : Window
 
         WindowStyle = _previousWindowStyle;
         ResizeMode = _previousResizeMode;
-        WindowState = _previousWindowState;
+        if (_previousWindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+            WindowState = WindowState.Maximized;
+        }
+        else
+        {
+            WindowState = _previousWindowState;
+        }
 
         _isFullScreen = false;
         Vm.IsFullScreen = false;
